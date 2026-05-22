@@ -1,0 +1,47 @@
+import { Link } from "@tanstack/react-router";
+import { formatCOP, type Product } from "@/data/products";
+
+export function ProductCard({ product }: { product: Product }) {
+  const hasDiscount = !!product.discountPrice;
+  return (
+    <Link
+      to="/producto/$slug"
+      params={{ slug: product.slug }}
+      className="group block"
+    >
+      <div className="relative aspect-[4/5] overflow-hidden bg-secondary">
+        <img
+          src={product.image}
+          alt={product.name}
+          loading="lazy"
+          width={1000}
+          height={1200}
+          className="h-full w-full object-cover transition-transform duration-[1200ms] ease-out group-hover:scale-[1.06]"
+        />
+        {hasDiscount && (
+          <span className="absolute left-3 top-3 bg-wine px-2.5 py-1 text-[10px] uppercase tracking-[0.2em] text-primary-foreground">
+            Oferta
+          </span>
+        )}
+      </div>
+      <div className="mt-5 space-y-1.5">
+        <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+          {product.categoryLabel}
+        </p>
+        <h3 className="font-serif text-lg leading-snug text-foreground transition-colors group-hover:text-wine">
+          {product.name}
+        </h3>
+        <div className="flex items-baseline gap-2 pt-1">
+          {hasDiscount ? (
+            <>
+              <span className="text-sm font-medium text-wine">{formatCOP(product.discountPrice!)}</span>
+              <span className="text-xs text-muted-foreground line-through">{formatCOP(product.price)}</span>
+            </>
+          ) : (
+            <span className="text-sm font-medium text-foreground">{formatCOP(product.price)}</span>
+          )}
+        </div>
+      </div>
+    </Link>
+  );
+}
