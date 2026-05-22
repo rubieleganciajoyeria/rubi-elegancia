@@ -62,26 +62,43 @@
 }
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.129 0.042 264.695);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.129 0.042 264.695);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.129 0.042 264.695);
-  --primary: oklch(0.208 0.042 265.755);
-  --primary-foreground: oklch(0.984 0.003 247.858);
-  --secondary: oklch(0.968 0.007 247.896);
-  --secondary-foreground: oklch(0.208 0.042 265.755);
-  --muted: oklch(0.968 0.007 247.896);
-  --muted-foreground: oklch(0.554 0.046 257.417);
-  --accent: oklch(0.968 0.007 247.896);
-  --accent-foreground: oklch(0.208 0.042 265.755);
+  --radius: 0.25rem;
+
+  /* Rubí brand palette - editorial luxury */
+  --background: oklch(0.972 0.012 75);      /* beige claro #F5EFE6 */
+  --foreground: oklch(0.18 0.02 30);        /* negro cálido */
+  --card: oklch(0.985 0.008 80);
+  --card-foreground: oklch(0.18 0.02 30);
+  --popover: oklch(0.985 0.008 80);
+  --popover-foreground: oklch(0.18 0.02 30);
+
+  --primary: oklch(0.32 0.13 22);           /* vino oscuro */
+  --primary-foreground: oklch(0.972 0.012 75);
+  --secondary: oklch(0.93 0.018 75);
+  --secondary-foreground: oklch(0.18 0.02 30);
+  --muted: oklch(0.93 0.018 75);
+  --muted-foreground: oklch(0.45 0.025 50);
+  --accent: oklch(0.74 0.085 80);           /* dorado #C9A96E */
+  --accent-foreground: oklch(0.18 0.02 30);
+
+  --gold: oklch(0.74 0.085 80);
+  --gold-foreground: oklch(0.18 0.02 30);
+  --wine: oklch(0.32 0.13 22);
+  --ruby: oklch(0.42 0.16 18);
+
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(0.929 0.013 255.508);
-  --input: oklch(0.929 0.013 255.508);
-  --ring: oklch(0.704 0.04 256.788);
+  --border: oklch(0.86 0.018 70);
+  --input: oklch(0.88 0.018 70);
+  --ring: oklch(0.74 0.085 80);
+
+  --gradient-gold: linear-gradient(135deg, oklch(0.78 0.09 82), oklch(0.65 0.075 70));
+  --gradient-luxe: linear-gradient(180deg, oklch(0.972 0.012 75), oklch(0.93 0.018 75));
+  --shadow-elegant: 0 20px 60px -20px oklch(0.32 0.13 22 / 0.18);
+  --shadow-soft: 0 8px 30px -12px oklch(0.18 0.02 30 / 0.12);
+
+  --font-serif: "Cormorant Garamond", "Playfair Display", Georgia, serif;
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
