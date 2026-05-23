@@ -1,7 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
-import { ArrowRight, ShieldCheck, Sparkles, Gem } from "lucide-react";
-import { Watch, ShoppingBag } from "lucide-react";
+import { ArrowRight, ShieldCheck, Sparkles, Gem, Watch, ShoppingBag } from "lucide-react";
 import catWatches from "@/assets/cat-watches.jpg";
 import catJewelry from "@/assets/cat-jewelry.jpg";
 import emotional from "@/assets/emotional-banner.jpg";
