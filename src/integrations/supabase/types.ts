@@ -150,6 +150,7 @@ export type Database = {
           price: number
           slug: string
           sort_order: number
+          stock: number | null
           updated_at: string
           warranty: string
         }
@@ -169,6 +170,7 @@ export type Database = {
           price: number
           slug: string
           sort_order?: number
+          stock?: number | null
           updated_at?: string
           warranty?: string
         }
@@ -188,6 +190,7 @@ export type Database = {
           price?: number
           slug?: string
           sort_order?: number
+          stock?: number | null
           updated_at?: string
           warranty?: string
         }

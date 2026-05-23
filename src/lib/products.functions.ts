@@ -76,6 +76,7 @@ const productSchema = z.object({
   warranty: z.string().max(200).default(""),
   is_active: z.boolean().default(true),
   sort_order: z.number().int().default(0),
+  stock: z.number().int().min(0).max(1_000_000).nullable().optional(),
 });
 
 export const upsertProduct = createServerFn({ method: "POST" })
@@ -83,7 +84,11 @@ export const upsertProduct = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => productSchema.parse(input))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
-    const payload = { ...data, discount_price: data.discount_price ?? null };
+    const payload = {
+      ...data,
+      discount_price: data.discount_price ?? null,
+      stock: data.stock ?? null,
+    };
     if (data.id) {
       const { error } = await supabaseAdmin
         .from("products")

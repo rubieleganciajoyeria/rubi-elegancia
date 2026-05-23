@@ -70,6 +70,8 @@ function ProductDetail() {
   const { has, toggle } = useWishlist();
   const fav = has(product.id);
   const hasDiscount = !!product.discountPrice;
+  const soldOut = product.stock !== null && product.stock <= 0;
+  const maxQty = product.stock ?? Infinity;
   const related: Product[] = all
     .filter((p) => p.id !== product.id && p.category === product.category)
     .slice(0, 3);
@@ -143,7 +145,7 @@ function ProductDetail() {
               </button>
               <span className="min-w-[36px] text-center text-sm">{qty}</span>
               <button
-                onClick={() => setQtyLocal((q) => q + 1)}
+              onClick={() => setQtyLocal((q) => Math.min(maxQty, q + 1))}
                 className="px-3 py-3 hover:text-wine"
                 aria-label="Sumar"
               >
@@ -151,10 +153,11 @@ function ProductDetail() {
               </button>
             </div>
             <button
-              onClick={() => add(product, qty)}
-              className="inline-flex flex-1 items-center justify-center gap-2 border border-foreground/30 px-8 py-4 text-[11px] uppercase tracking-[0.25em] text-foreground transition-colors hover:border-wine hover:text-wine"
+            onClick={() => add(product, qty)}
+            disabled={soldOut}
+            className="inline-flex flex-1 items-center justify-center gap-2 border border-foreground/30 px-8 py-4 text-[11px] uppercase tracking-[0.25em] text-foreground transition-colors hover:border-wine hover:text-wine disabled:opacity-40 disabled:hover:border-foreground/30 disabled:hover:text-foreground"
             >
-              Agregar al carrito
+            {soldOut ? "Agotado" : "Agregar al carrito"}
             </button>
             <button
               aria-label={fav ? "Quitar de favoritos" : "Agregar a favoritos"}
@@ -170,14 +173,17 @@ function ProductDetail() {
             onClick={() => {
               add(product, qty);
               setOpen(false);
-              // navigate to checkout
               window.location.href = "/checkout";
             }}
-            className="mt-3 inline-flex w-full items-center justify-center gap-2 bg-wine px-8 py-4 text-[11px] uppercase tracking-[0.25em] text-primary-foreground transition-opacity hover:opacity-90"
+            disabled={soldOut}
+            className="mt-3 inline-flex w-full items-center justify-center gap-2 bg-wine px-8 py-4 text-[11px] uppercase tracking-[0.25em] text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
           >
             <ShoppingBag className="h-4 w-4" strokeWidth={1.5} />
             Comprar ahora
           </button>
+          {product.stock !== null && product.stock > 0 && product.stock <= 5 && (
+            <p className="mt-3 text-xs text-wine">Solo quedan {product.stock} unidades</p>
+          )}
 
           <div className="gold-divider mt-10" />
 
