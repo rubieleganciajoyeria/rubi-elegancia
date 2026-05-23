@@ -9,6 +9,7 @@ import {
   upsertProduct,
   deleteProduct,
   getMyRole,
+  replaceProductImages,
 } from "@/lib/products.functions";
 import {
   adminListBanners,
@@ -38,6 +39,7 @@ function AdminPage() {
   const role = useServerFn(getMyRole);
   const save = useServerFn(upsertProduct);
   const del = useServerFn(deleteProduct);
+  const saveImages = useServerFn(replaceProductImages);
   const listCats = useServerFn(adminListCategories);
   const qc = useQueryClient();
 
@@ -56,10 +58,17 @@ function AdminPage() {
   const [editing, setEditing] = useState<Partial<ProductRow> | null>(null);
 
   const saveM = useMutation({
-    mutationFn: (data: FormValues) => save({ data }),
+    mutationFn: async (data: FormValues) => {
+      const { images, ...rest } = data;
+      const res = await save({ data: rest });
+      const id = res.id;
+      await saveImages({ data: { product_id: id, images } });
+      return res;
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin", "products"] });
       qc.invalidateQueries({ queryKey: ["products"] });
+      qc.invalidateQueries({ queryKey: ["product"] });
       setEditing(null);
     },
   });
