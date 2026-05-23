@@ -4,6 +4,7 @@ import { ShieldCheck, Truck, RefreshCcw, ShoppingBag, Heart } from "lucide-react
 import { products, formatCOP, type Product } from "@/data/products";
 import { ProductCard } from "@/components/ProductCard";
 import { useCart } from "@/context/CartContext";
+import { useWishlist } from "@/context/WishlistContext";
 
 export const Route = createFileRoute("/producto/$slug")({
   loader: ({ params }): { product: Product } => {
@@ -46,6 +47,8 @@ function ProductDetail() {
   const [active, setActive] = useState(0);
   const [qty, setQtyLocal] = useState(1);
   const { add, setOpen } = useCart();
+  const { has, toggle } = useWishlist();
+  const fav = has(product.id);
   const hasDiscount = !!product.discountPrice;
   const related = products.filter((p) => p.id !== product.id && p.category === product.category).slice(0, 3);
 
@@ -131,8 +134,14 @@ function ProductDetail() {
             >
               Agregar al carrito
             </button>
-            <button aria-label="Favorito" className="inline-flex items-center justify-center border border-foreground/30 p-4 transition-colors hover:border-wine hover:text-wine">
-              <Heart className="h-4 w-4" strokeWidth={1.5} />
+            <button
+              aria-label={fav ? "Quitar de favoritos" : "Agregar a favoritos"}
+              onClick={() => toggle(product.id)}
+              className={`inline-flex items-center justify-center border p-4 transition-colors ${
+                fav ? "border-wine text-wine" : "border-foreground/30 hover:border-wine hover:text-wine"
+              }`}
+            >
+              <Heart className="h-4 w-4" strokeWidth={1.5} fill={fav ? "currentColor" : "none"} />
             </button>
           </div>
           <button
