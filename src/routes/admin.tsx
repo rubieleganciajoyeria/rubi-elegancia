@@ -178,6 +178,10 @@ function AdminPage() {
 
       <div className="gold-divider my-12" />
 
+      <GlobalSettingsAdmin />
+
+      <div className="gold-divider my-12" />
+
       <h2 className="mb-6 font-serif text-2xl">Productos</h2>
 
       {productsQ.isLoading ? (
