@@ -3,6 +3,9 @@ import { useState } from "react";
 import { ShieldCheck, Truck, MessageCircle } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { formatCOP } from "@/data/products";
+import { useServerFn } from "@tanstack/react-start";
+import { createOrder } from "@/lib/orders.functions";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({
@@ -27,6 +30,8 @@ function CheckoutPage() {
   const { items, subtotal, clear } = useCart();
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const create = useServerFn(createOrder);
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -41,14 +46,30 @@ function CheckoutPage() {
   const onChange = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm({ ...form, [k]: e.target.value });
 
-  const onSubmit = (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    // V1: redirige a una pantalla de confirmación. Wompi se integrará después.
-    setTimeout(() => {
+    setError(null);
+    try {
+      const { data: u } = await supabase.auth.getUser();
+      await create({
+        data: {
+          customer_name: form.name,
+          customer_email: form.email,
+          customer_phone: form.phone,
+          city: form.city,
+          address: form.address,
+          notes: form.notes,
+          user_id: u.user?.id ?? null,
+          items: items.map((i) => ({ product_id: i.id, qty: i.qty })),
+        },
+      });
       clear();
       navigate({ to: "/" });
-    }, 600);
+    } catch (err: any) {
+      setError(err?.message ?? "No pudimos registrar tu pedido. Intenta nuevamente.");
+      setSubmitting(false);
+    }
   };
 
   const whatsappHref = () => {
@@ -130,6 +151,7 @@ function CheckoutPage() {
             >
               {submitting ? "Procesando..." : `Confirmar pedido · ${formatCOP(total)}`}
             </button>
+            {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
 
             <a
               href={whatsappHref()}

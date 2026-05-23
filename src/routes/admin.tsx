@@ -1,5 +1,5 @@
 import { createFileRoute, redirect, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Pencil, Trash2, Plus, LogOut, X } from "lucide-react";
@@ -26,6 +26,11 @@ import {
   upsertPromotion,
   deletePromotion,
 } from "@/lib/promotions.functions";
+import {
+  adminListOrders,
+  updateOrderStatus,
+  deleteOrder,
+} from "@/lib/orders.functions";
 import { formatCOP } from "@/data/products";
 
 export const Route = createFileRoute("/admin")({
@@ -158,6 +163,10 @@ function AdminPage() {
       <div className="gold-divider my-12" />
 
       <PromotionsAdmin products={productsQ.data ?? []} />
+
+      <div className="gold-divider my-12" />
+
+      <OrdersAdmin />
 
       <div className="gold-divider my-12" />
 
@@ -513,6 +522,137 @@ function ProductEditor({
         </form>
       </div>
     </div>
+  );
+}
+
+const ORDER_STATUSES = [
+  "pending",
+  "confirmed",
+  "paid",
+  "shipped",
+  "delivered",
+  "cancelled",
+] as const;
+
+const STATUS_LABEL: Record<(typeof ORDER_STATUSES)[number], string> = {
+  pending: "Pendiente",
+  confirmed: "Confirmado",
+  paid: "Pagado",
+  shipped: "Enviado",
+  delivered: "Entregado",
+  cancelled: "Cancelado",
+};
+
+function OrdersAdmin() {
+  const list = useServerFn(adminListOrders);
+  const upd = useServerFn(updateOrderStatus);
+  const del = useServerFn(deleteOrder);
+  const qc = useQueryClient();
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  const ordersQ = useQuery({ queryKey: ["admin", "orders"], queryFn: () => list() });
+
+  const updM = useMutation({
+    mutationFn: (v: { id: string; status: (typeof ORDER_STATUSES)[number] }) =>
+      upd({ data: v }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "orders"] }),
+  });
+  const delM = useMutation({
+    mutationFn: (id: string) => del({ data: { id } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "orders"] }),
+  });
+
+  return (
+    <section>
+      <h2 className="mb-6 font-serif text-2xl">Pedidos</h2>
+      {ordersQ.isLoading ? (
+        <p className="text-sm text-muted-foreground">Cargando pedidos…</p>
+      ) : (ordersQ.data ?? []).length === 0 ? (
+        <p className="text-sm text-muted-foreground">Aún no hay pedidos.</p>
+      ) : (
+        <div className="overflow-x-auto border border-border/60">
+          <table className="w-full text-sm">
+            <thead className="bg-secondary/50 text-left text-[11px] uppercase tracking-[0.15em] text-muted-foreground">
+              <tr>
+                <th className="p-3">Fecha</th>
+                <th className="p-3">Cliente</th>
+                <th className="p-3">Total</th>
+                <th className="p-3">Estado</th>
+                <th className="p-3 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(ordersQ.data ?? []).map((o: any) => (
+                <Fragment key={o.id}>
+                  <tr className="border-t border-border/60">
+                    <td className="p-3 text-xs text-muted-foreground">
+                      {new Date(o.created_at).toLocaleString()}
+                    </td>
+                    <td className="p-3">
+                      <div className="font-medium">{o.customer_name}</div>
+                      <div className="text-xs text-muted-foreground">{o.customer_email} · {o.customer_phone}</div>
+                      <div className="text-xs text-muted-foreground">{o.city} — {o.address}</div>
+                    </td>
+                    <td className="p-3">{formatCOP(o.total)}</td>
+                    <td className="p-3">
+                      <select
+                        value={o.status}
+                        onChange={(e) => updM.mutate({ id: o.id, status: e.target.value as any })}
+                        className="border border-foreground/20 bg-transparent px-2 py-1 text-xs"
+                      >
+                        {ORDER_STATUSES.map((s) => (
+                          <option key={s} value={s}>{STATUS_LABEL[s]}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="p-3 text-right">
+                      <button
+                        onClick={() => setExpanded(expanded === o.id ? null : o.id)}
+                        className="mr-3 text-[11px] uppercase tracking-[0.2em] text-wine"
+                      >
+                        {expanded === o.id ? "Ocultar" : "Detalle"}
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (confirm("¿Eliminar pedido?")) delM.mutate(o.id);
+                        }}
+                        aria-label="Eliminar"
+                        className="text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="inline h-4 w-4" />
+                      </button>
+                    </td>
+                  </tr>
+                  {expanded === o.id && (
+                    <tr className="border-t border-border/60 bg-secondary/20">
+                      <td colSpan={5} className="p-4">
+                        <div className="grid gap-3">
+                          {(o.order_items ?? []).map((it: any) => (
+                            <div key={it.id} className="flex items-center gap-3 text-sm">
+                              {it.product_image && (
+                                <img src={it.product_image} alt="" className="h-12 w-10 object-cover" />
+                              )}
+                              <div className="flex-1">
+                                <div>{it.product_name}</div>
+                                <div className="text-xs text-muted-foreground">x{it.qty} · {formatCOP(it.unit_price)} c/u</div>
+                              </div>
+                              <div>{formatCOP(it.subtotal)}</div>
+                            </div>
+                          ))}
+                          <div className="text-xs text-muted-foreground">
+                            Subtotal: {formatCOP(o.subtotal)} · Envío: {formatCOP(o.shipping)} · Notas: {o.notes || "—"}
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
   );
 }
 
