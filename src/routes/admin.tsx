@@ -30,6 +30,7 @@ import {
   adminListOrders,
   updateOrderStatus,
   deleteOrder,
+  adminGetMetrics,
 } from "@/lib/orders.functions";
 import {
   listSiteContent,
@@ -157,6 +158,10 @@ function AdminPage() {
       </div>
 
       <div className="gold-divider my-8" />
+
+      <DashboardAdmin />
+
+      <div className="gold-divider my-12" />
 
       <BannersAdmin />
 
