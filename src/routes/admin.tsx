@@ -29,6 +29,11 @@ import {
   deletePromotion,
 } from "@/lib/promotions.functions";
 import {
+  adminListCoupons,
+  upsertCoupon,
+  deleteCoupon,
+} from "@/lib/coupons.functions";
+import {
   adminListOrders,
   updateOrderStatus,
   deleteOrder,
@@ -174,6 +179,10 @@ function AdminPage() {
       <div className="gold-divider my-12" />
 
       <PromotionsAdmin products={productsQ.data ?? []} />
+
+      <div className="gold-divider my-12" />
+
+      <CouponsAdmin />
 
       <div className="gold-divider my-12" />
 
