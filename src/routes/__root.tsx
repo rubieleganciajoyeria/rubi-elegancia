@@ -15,6 +15,7 @@ import { CartProvider } from "@/context/CartContext";
 import { CartDrawer } from "@/components/CartDrawer";
 import { WishlistProvider } from "@/context/WishlistContext";
 import { AnnouncementBar } from "@/components/AnnouncementBar";
+import { WhatsAppFAB } from "@/components/WhatsAppFAB";
 
 function NotFoundComponent() {
   return (
