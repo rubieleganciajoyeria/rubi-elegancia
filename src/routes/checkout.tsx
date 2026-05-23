@@ -4,7 +4,7 @@ import { ShieldCheck, Truck, MessageCircle } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { formatCOP } from "@/data/products";
 import { useServerFn } from "@tanstack/react-start";
-import { createOrder } from "@/lib/orders.functions";
+import { createWompiCheckout } from "@/lib/wompi.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { getGlobalSettings } from "@/lib/site-content.functions";
@@ -33,7 +33,7 @@ function CheckoutPage() {
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const create = useServerFn(createOrder);
+  const create = useServerFn(createWompiCheckout);
   const { data: settings } = useQuery({
     queryKey: ["global-settings"],
     queryFn: () => getGlobalSettings(),
@@ -59,7 +59,7 @@ function CheckoutPage() {
     setError(null);
     try {
       const { data: u } = await supabase.auth.getUser();
-      await create({
+      const res = await create({
         data: {
           customer_name: form.name,
           customer_email: form.email,
@@ -72,7 +72,19 @@ function CheckoutPage() {
         },
       });
       clear();
-      navigate({ to: u.user ? "/cuenta" : "/" });
+      const redirectUrl = `${window.location.origin}${u.user ? "/cuenta" : "/"}`;
+      const params = new URLSearchParams({
+        "public-key": res.publicKey,
+        currency: res.currency,
+        "amount-in-cents": String(res.amountInCents),
+        reference: res.reference,
+        "signature:integrity": res.signature,
+        "redirect-url": redirectUrl,
+        "customer-data:email": form.email,
+        "customer-data:full-name": form.name,
+        "customer-data:phone-number": form.phone,
+      });
+      window.location.href = `https://checkout.wompi.co/p/?${params.toString()}`;
     } catch (err: any) {
       setError(err?.message ?? "No pudimos registrar tu pedido. Intenta nuevamente.");
       setSubmitting(false);
@@ -150,7 +162,7 @@ function CheckoutPage() {
           <section>
             <h2 className="font-serif text-2xl">Pago</h2>
             <p className="mt-3 text-sm text-muted-foreground">
-              Estamos preparando la pasarela de pagos. Por ahora puedes confirmar tu pedido y un asesor te contactará para finalizarlo, o escríbenos directamente por WhatsApp.
+              Pago seguro con Wompi. Aceptamos tarjetas, PSE, Nequi y Bancolombia. Serás redirigido para completar tu pago.
             </p>
 
             <button
@@ -158,7 +170,7 @@ function CheckoutPage() {
               disabled={submitting}
               className="mt-6 inline-flex w-full items-center justify-center bg-wine px-8 py-4 text-[11px] uppercase tracking-[0.25em] text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
             >
-              {submitting ? "Procesando..." : `Confirmar pedido · ${formatCOP(total)}`}
+              {submitting ? "Redirigiendo a Wompi..." : `Pagar con Wompi · ${formatCOP(total)}`}
             </button>
             {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
 
