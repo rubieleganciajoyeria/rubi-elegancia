@@ -19,8 +19,9 @@ export function ProductCard({ product }: { product: Product }) {
           src={product.image}
           alt={product.name}
           loading="lazy"
-          width={1000}
-          height={1200}
+          decoding="async"
+          width={600}
+          height={750}
           className="h-full w-full object-cover transition-transform duration-[1200ms] ease-out group-hover:scale-[1.06]"
         />
         {hasDiscount && (
