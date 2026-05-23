@@ -1,10 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { mapProduct, type Product } from "@/data/products";
 import { listActiveProducts } from "@/lib/products.functions";
 import { listActiveCategories } from "@/lib/categories.functions";
 import { ProductCard } from "@/components/ProductCard";
+import { Search as SearchIcon, X } from "lucide-react";
 
 const productsQueryOptions = queryOptions({
   queryKey: ["products", "active"],
@@ -16,11 +18,19 @@ const categoriesQueryOptions = queryOptions({
   queryFn: async () => await listActiveCategories(),
 });
 
-type Search = { cat?: string };
+type SortOpt = "relevance" | "price-asc" | "price-desc" | "name";
+type Search = { cat?: string; q?: string; sort?: SortOpt };
+
+const SORT_VALUES: SortOpt[] = ["relevance", "price-asc", "price-desc", "name"];
 
 export const Route = createFileRoute("/catalogo")({
   validateSearch: (s: Record<string, unknown>): Search => ({
     cat: typeof s.cat === "string" && /^[a-z0-9-]+$/.test(s.cat) ? s.cat : undefined,
+    q: typeof s.q === "string" && s.q.length <= 100 ? s.q : undefined,
+    sort:
+      typeof s.sort === "string" && (SORT_VALUES as string[]).includes(s.sort)
+        ? (s.sort as SortOpt)
+        : undefined,
   }),
   head: () => ({
     meta: [
@@ -38,7 +48,8 @@ export const Route = createFileRoute("/catalogo")({
 });
 
 function Catalogo() {
-  const { cat } = Route.useSearch();
+  const { cat, q, sort } = Route.useSearch();
+  const navigate = useNavigate({ from: "/catalogo" });
   const { data: products } = useSuspenseQuery(productsQueryOptions);
   const { data: categories } = useSuspenseQuery(categoriesQueryOptions);
   const brands = useMemo(() => Array.from(new Set(products.map((p) => p.brand))), [products]);
@@ -47,17 +58,43 @@ function Catalogo() {
   const [brand, setBrand] = useState<string>("todas");
   const [material, setMaterial] = useState<string>("todos");
   const [maxPrice, setMaxPrice] = useState<number>(3000000);
+  const [query, setQuery] = useState<string>(q ?? "");
+
+  const currentSort: SortOpt = sort ?? "relevance";
+  const setSort = (s: SortOpt) =>
+    navigate({ search: (prev) => ({ ...prev, sort: s === "relevance" ? undefined : s }) });
+
+  const applyQuery = (value: string) => {
+    const v = value.trim();
+    navigate({ search: (prev) => ({ ...prev, q: v.length > 0 ? v : undefined }) });
+  };
 
   const filtered = useMemo(
-    (): Product[] =>
-      products.filter((p) => {
+    (): Product[] => {
+      const term = (q ?? "").trim().toLowerCase();
+      const result = products.filter((p) => {
         if (category !== "todos" && p.category !== category) return false;
         if (brand !== "todas" && p.brand !== brand) return false;
         if (material !== "todos" && p.material !== material) return false;
         const price = p.discountPrice ?? p.price;
-        return price <= maxPrice;
-      }),
-    [products, category, brand, material, maxPrice],
+        if (price > maxPrice) return false;
+        if (term.length > 0) {
+          const hay = `${p.name} ${p.brand} ${p.material} ${p.categoryLabel ?? ""}`.toLowerCase();
+          if (!hay.includes(term)) return false;
+        }
+        return true;
+      });
+      const sorted = [...result];
+      if (currentSort === "price-asc") {
+        sorted.sort((a, b) => (a.discountPrice ?? a.price) - (b.discountPrice ?? b.price));
+      } else if (currentSort === "price-desc") {
+        sorted.sort((a, b) => (b.discountPrice ?? b.price) - (a.discountPrice ?? a.price));
+      } else if (currentSort === "name") {
+        sorted.sort((a, b) => a.name.localeCompare(b.name, "es"));
+      }
+      return sorted;
+    },
+    [products, category, brand, material, maxPrice, q, currentSort],
   );
 
   return (
@@ -71,6 +108,52 @@ function Catalogo() {
       </div>
 
       <div className="gold-divider my-12" />
+
+      <div className="mb-10 flex flex-col items-stretch gap-3 md:flex-row md:items-center md:justify-between">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            applyQuery(query);
+          }}
+          className="relative flex-1 md:max-w-md"
+        >
+          <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Buscar relojes, joyas, marcas…"
+            className="w-full border border-foreground/20 bg-transparent py-2.5 pl-9 pr-9 text-sm outline-none focus:border-wine"
+          />
+          {query.length > 0 && (
+            <button
+              type="button"
+              aria-label="Limpiar búsqueda"
+              onClick={() => {
+                setQuery("");
+                applyQuery("");
+              }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-wine"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </form>
+
+        <div className="flex items-center gap-3 text-xs uppercase tracking-[0.2em] text-muted-foreground">
+          <span>Ordenar</span>
+          <select
+            value={currentSort}
+            onChange={(e) => setSort(e.target.value as SortOpt)}
+            className="border border-foreground/20 bg-transparent px-3 py-2 text-xs uppercase tracking-[0.15em] outline-none focus:border-wine"
+          >
+            <option value="relevance">Destacados</option>
+            <option value="price-asc">Precio: menor a mayor</option>
+            <option value="price-desc">Precio: mayor a menor</option>
+            <option value="name">Nombre A–Z</option>
+          </select>
+        </div>
+      </div>
 
       <div className="grid gap-12 md:grid-cols-[220px_1fr]">
         {/* Filtros */}
