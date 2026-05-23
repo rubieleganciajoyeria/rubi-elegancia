@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Pencil, Trash2, Plus, LogOut, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { ImageUpload } from "@/components/ImageUpload";
 import {
   adminListProducts,
   upsertProduct,
@@ -482,6 +483,15 @@ function ProductEditor({
               >
                 + Añadir imagen
               </button>
+              <span className="mx-3 text-foreground/30">·</span>
+              <ImageUpload
+                folder="products"
+                label="↑ Subir desde mi PC"
+                onUploaded={(url) => {
+                  const next = [...v.images, { url, alt: "" }];
+                  setV({ ...v, images: next, image: next[0]?.url ?? "" });
+                }}
+              />
             </div>
           </div>
 
@@ -882,6 +892,14 @@ function BannerEditor({
             required
             className="sm:col-span-2"
           />
+          <div className="sm:col-span-2 -mt-2 flex items-center gap-3">
+            {v.image && <img src={v.image} alt="" className="h-14 w-24 object-cover" />}
+            <ImageUpload
+              folder="banners"
+              label={v.image ? "↑ Reemplazar imagen" : "↑ Subir desde mi PC"}
+              onUploaded={(url) => set("image", url)}
+            />
+          </div>
           <Field label="Eyebrow (texto pequeño superior)" value={v.eyebrow} onChange={(x) => set("eyebrow", x)} className="sm:col-span-2" />
           <Field label="Título" value={v.title} onChange={(x) => set("title", x)} className="sm:col-span-2" />
           <div className="sm:col-span-2">
