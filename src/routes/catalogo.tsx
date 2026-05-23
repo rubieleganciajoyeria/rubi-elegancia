@@ -62,11 +62,11 @@ function Catalogo() {
 
   const currentSort: SortOpt = sort ?? "relevance";
   const setSort = (s: SortOpt) =>
-    navigate({ search: (prev) => ({ ...prev, sort: s === "relevance" ? undefined : s }) });
+    navigate({ search: (prev: Search) => ({ ...prev, sort: s === "relevance" ? undefined : s }) });
 
   const applyQuery = (value: string) => {
     const v = value.trim();
-    navigate({ search: (prev) => ({ ...prev, q: v.length > 0 ? v : undefined }) });
+    navigate({ search: (prev: Search) => ({ ...prev, q: v.length > 0 ? v : undefined }) });
   };
 
   const filtered = useMemo(
