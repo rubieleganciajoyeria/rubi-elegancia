@@ -6,6 +6,8 @@ import { formatCOP } from "@/data/products";
 import { useServerFn } from "@tanstack/react-start";
 import { createOrder } from "@/lib/orders.functions";
 import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
+import { getGlobalSettings } from "@/lib/site-content.functions";
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({
@@ -32,6 +34,11 @@ function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const create = useServerFn(createOrder);
+  const { data: settings } = useQuery({
+    queryKey: ["global-settings"],
+    queryFn: () => getGlobalSettings(),
+    staleTime: 60_000,
+  });
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -73,15 +80,17 @@ function CheckoutPage() {
   };
 
   const whatsappHref = () => {
+    const wa = (settings?.whatsapp ?? "").replace(/\D/g, "");
+    const intro = settings?.whatsapp_message?.trim() || "Hola Rubí, me interesa este pedido:";
     const lines = [
-      `Hola Rubí, me interesa este pedido:`,
+      intro,
       ...items.map((i) => `• ${i.name} x${i.qty} — ${formatCOP(i.price * i.qty)}`),
       ``,
       `Subtotal: ${formatCOP(subtotal)}`,
       `Envío: ${shipping === 0 ? "Gratis" : formatCOP(shipping)}`,
       `Total: ${formatCOP(total)}`,
     ];
-    return `https://wa.me/?text=${encodeURIComponent(lines.join("\n"))}`;
+    return `https://wa.me/${wa}?text=${encodeURIComponent(lines.join("\n"))}`;
   };
 
   if (items.length === 0) {

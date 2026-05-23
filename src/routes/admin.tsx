@@ -178,6 +178,10 @@ function AdminPage() {
 
       <div className="gold-divider my-12" />
 
+      <GlobalSettingsAdmin />
+
+      <div className="gold-divider my-12" />
+
       <h2 className="mb-6 font-serif text-2xl">Productos</h2>
 
       {productsQ.isLoading ? (
@@ -1492,5 +1496,97 @@ function HomeSectionsAdmin() {
         })}
       </div>
     </section>
+  );
+}
+
+function GlobalSettingsAdmin() {
+  const list = useServerFn(listSiteContent);
+  const save = useServerFn(upsertSiteContent);
+  const qc = useQueryClient();
+  const q = useQuery({ queryKey: ["admin", "site-content"], queryFn: () => list() });
+  const initial = (q.data?.global_settings ?? {}) as any;
+  const [form, setForm] = useState<any | null>(null);
+  const v = form ?? initial;
+  const set = (k: string, val: any) => setForm({ ...(form ?? initial), [k]: val });
+
+  const saveM = useMutation({
+    mutationFn: () => save({ data: { key: "global_settings", data: v } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "site-content"] });
+      qc.invalidateQueries({ queryKey: ["site-content"] });
+      qc.invalidateQueries({ queryKey: ["global-settings"] });
+      qc.invalidateQueries({ queryKey: ["products"] });
+      qc.invalidateQueries({ queryKey: ["product"] });
+      setForm(null);
+    },
+  });
+
+  return (
+    <section>
+      <h2 className="mb-6 font-serif text-2xl">Configuración global</h2>
+      <div className="grid gap-5 border border-border/60 p-5 md:grid-cols-2">
+        <Labeled label="WhatsApp (con código país, sin +)">
+          <input
+            value={v.whatsapp ?? ""}
+            onChange={(e) => set("whatsapp", e.target.value)}
+            placeholder="573001234567"
+            className="w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm outline-none focus:border-wine"
+          />
+        </Labeled>
+        <Labeled label="Mensaje WhatsApp por defecto">
+          <input
+            value={v.whatsapp_message ?? ""}
+            onChange={(e) => set("whatsapp_message", e.target.value)}
+            className="w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm outline-none focus:border-wine"
+          />
+        </Labeled>
+        <Labeled label="Anuncio superior del sitio (vacío = oculto)" className="md:col-span-2">
+          <input
+            value={v.announcement ?? ""}
+            onChange={(e) => set("announcement", e.target.value)}
+            placeholder="Envío gratis sobre $500.000"
+            className="w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm outline-none focus:border-wine"
+          />
+        </Labeled>
+        <Labeled label="Descuento global (%)">
+          <input
+            type="number"
+            min={0}
+            max={99}
+            value={v.global_discount_percent ?? 0}
+            onChange={(e) => set("global_discount_percent", Number(e.target.value))}
+            className="w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm outline-none focus:border-wine"
+          />
+        </Labeled>
+        <Labeled label="Activar descuento global">
+          <label className="mt-2 inline-flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={!!v.global_discount_active}
+              onChange={(e) => set("global_discount_active", e.target.checked)}
+            />
+            Aplicar a todos los productos
+          </label>
+        </Labeled>
+        <div className="md:col-span-2 flex justify-end">
+          <button
+            disabled={saveM.isPending}
+            onClick={() => saveM.mutate()}
+            className="bg-wine px-6 py-3 text-[11px] uppercase tracking-[0.25em] text-primary-foreground hover:opacity-90 disabled:opacity-40"
+          >
+            {saveM.isPending ? "Guardando…" : "Guardar configuración"}
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Labeled({ label, children, className = "" }: { label: string; children: React.ReactNode; className?: string }) {
+  return (
+    <div className={className}>
+      <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">{label}</label>
+      <div className="mt-2">{children}</div>
+    </div>
   );
 }

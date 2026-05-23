@@ -14,6 +14,7 @@ import { Footer } from "@/components/Footer";
 import { CartProvider } from "@/context/CartContext";
 import { CartDrawer } from "@/components/CartDrawer";
 import { WishlistProvider } from "@/context/WishlistContext";
+import { AnnouncementBar } from "@/components/AnnouncementBar";
 
 function NotFoundComponent() {
   return (
@@ -127,6 +128,7 @@ function RootComponent() {
       <WishlistProvider>
         <CartProvider>
           <div className="flex min-h-screen flex-col">
+            <AnnouncementBar />
             <Header />
             <main className="flex-1">
               <Outlet />
