@@ -7,6 +7,7 @@ import emotional from "@/assets/emotional-banner.jpg";
 import { mapProduct } from "@/data/products";
 import { listActiveProducts } from "@/lib/products.functions";
 import { listActiveBanners } from "@/lib/banners.functions";
+import { listSiteContent } from "@/lib/site-content.functions";
 import { ProductCard } from "@/components/ProductCard";
 import { HeroCarousel } from "@/components/HeroCarousel";
 
@@ -20,6 +21,11 @@ const bannersQueryOptions = queryOptions({
   queryFn: () => listActiveBanners(),
 });
 
+const siteContentQueryOptions = queryOptions({
+  queryKey: ["site-content"],
+  queryFn: () => listSiteContent(),
+});
+
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
@@ -31,6 +37,7 @@ export const Route = createFileRoute("/")({
   }),
   loader: ({ context }) => {
     context.queryClient.ensureQueryData(bannersQueryOptions);
+    context.queryClient.ensureQueryData(siteContentQueryOptions);
     return context.queryClient.ensureQueryData(productsQueryOptions);
   },
   component: Home,
@@ -39,7 +46,13 @@ export const Route = createFileRoute("/")({
 function Home() {
   const { data: products } = useSuspenseQuery(productsQueryOptions);
   const { data: banners } = useSuspenseQuery(bannersQueryOptions);
+  const { data: content } = useSuspenseQuery(siteContentQueryOptions);
   const featured = products.slice(0, 4);
+  const pillars = content.home_pillars?.items ?? [];
+  const emo = content.home_emotional ?? {};
+  const benefits = content.home_benefits?.items ?? [];
+  const featuredSec = content.home_featured ?? {};
+  const catsSec = content.home_categories_section ?? {};
   return (
     <div>
       {/* Hero carrusel administrable */}
@@ -48,18 +61,17 @@ function Home() {
       {/* Pilares de marca */}
       <section className="bg-wine text-background">
         <div className="mx-auto grid max-w-7xl grid-cols-2 gap-y-8 px-6 py-10 md:grid-cols-4 md:gap-0 md:px-10 md:py-8">
-          <Pillar icon={<Watch strokeWidth={1.3} className="h-6 w-6" />} title="Relojería" text="Marcas que marcan tu tiempo." />
-          <Pillar icon={<Gem strokeWidth={1.3} className="h-6 w-6" />} title="Joyería" text="Brillos que cuentan tu historia." />
-          <Pillar icon={<ShieldCheck strokeWidth={1.3} className="h-6 w-6" />} title="Confianza" text="Productos originales, garantía y respaldo." />
-          <Pillar icon={<ShoppingBag strokeWidth={1.3} className="h-6 w-6" />} title="Experiencia" text="Asesoría personalizada en cada detalle." />
+          {pillars.map((p: any, i: number) => (
+            <Pillar key={i} icon={renderIcon(p.icon, "gold")} title={p.title} text={p.text} />
+          ))}
         </div>
       </section>
 
       {/* Categorías */}
       <section className="mx-auto max-w-7xl px-6 py-24 md:px-10 md:py-32">
         <div className="mb-14 text-center">
-          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Colecciones</p>
-          <h2 className="mt-4 font-serif text-4xl md:text-5xl">Dos universos, una visión</h2>
+          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">{catsSec.eyebrow || "Colecciones"}</p>
+          <h2 className="mt-4 font-serif text-4xl md:text-5xl">{catsSec.title || "Dos universos, una visión"}</h2>
         </div>
         <div className="grid gap-6 md:grid-cols-2">
           <CategoryCard image={catWatches} title="Relojería" subtitle="Tiempo en su forma más pura" to="relojeria" />
@@ -69,16 +81,18 @@ function Home() {
 
       {/* Banner emocional */}
       <section className="relative h-[60vh] min-h-[460px] w-full overflow-hidden">
-        <img src={emotional} alt="Pareja con joyería elegante" width={1920} height={1000} loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
+        <img src={emo.image || emotional} alt="" width={1920} height={1000} loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
         <div className="absolute inset-0 bg-foreground/45" />
         <div className="relative z-10 mx-auto flex h-full max-w-3xl flex-col items-center justify-center px-6 text-center">
-          <p className="text-xs uppercase tracking-[0.35em] text-background/80">El regalo perfecto</p>
+          <p className="text-xs uppercase tracking-[0.35em] text-background/80">{emo.eyebrow || "El regalo perfecto"}</p>
           <h2 className="mt-5 font-serif text-3xl text-background md:text-5xl text-balance">
-            Cada pieza cuenta una historia. La tuya.
+            {emo.title || "Cada pieza cuenta una historia. La tuya."}
           </h2>
-          <Link to="/catalogo" className="mt-8 text-[11px] uppercase tracking-[0.28em] text-background underline-offset-8 hover:underline">
-            Descubrir piezas con descuento
-          </Link>
+          {emo.cta_label && (
+            <a href={emo.cta_url || "/catalogo"} className="mt-8 text-[11px] uppercase tracking-[0.28em] text-background underline-offset-8 hover:underline">
+              {emo.cta_label}
+            </a>
+          )}
         </div>
       </section>
 
@@ -86,12 +100,12 @@ function Home() {
       <section className="mx-auto max-w-7xl px-6 py-24 md:px-10 md:py-32">
         <div className="mb-14 flex items-end justify-between gap-4">
           <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Selección Rubí</p>
-            <h2 className="mt-4 font-serif text-4xl md:text-5xl">Piezas destacadas</h2>
+            <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">{featuredSec.eyebrow || "Selección Rubí"}</p>
+            <h2 className="mt-4 font-serif text-4xl md:text-5xl">{featuredSec.title || "Piezas destacadas"}</h2>
           </div>
-          <Link to="/catalogo" className="hidden text-[11px] uppercase tracking-[0.25em] text-foreground/80 hover:text-wine md:block">
-            Ver toda la colección →
-          </Link>
+          <a href={featuredSec.cta_url || "/catalogo"} className="hidden text-[11px] uppercase tracking-[0.25em] text-foreground/80 hover:text-wine md:block">
+            {featuredSec.cta_label || "Ver toda la colección →"}
+          </a>
         </div>
         <div className="grid grid-cols-2 gap-x-6 gap-y-12 md:grid-cols-4">
           {featured.map((p) => (
@@ -103,13 +117,25 @@ function Home() {
       {/* Beneficios */}
       <section className="border-y border-border/60 bg-secondary/40">
         <div className="mx-auto grid max-w-7xl gap-12 px-6 py-20 md:grid-cols-3 md:px-10">
-          <Benefit icon={<ShieldCheck strokeWidth={1.2} className="h-7 w-7" />} title="Confianza" text="Piezas certificadas. Atención dedicada en cada compra." />
-          <Benefit icon={<Sparkles strokeWidth={1.2} className="h-7 w-7" />} title="Garantía" text="Hasta 5 años en relojería y joyería seleccionada." />
-          <Benefit icon={<Gem strokeWidth={1.2} className="h-7 w-7" />} title="Experiencia personalizada" text="Asesoría exclusiva para encontrar la pieza ideal." />
+          {benefits.map((b: any, i: number) => (
+            <Benefit key={i} icon={renderIcon(b.icon, "wine")} title={b.title} text={b.text} />
+          ))}
         </div>
       </section>
     </div>
   );
+}
+
+function renderIcon(name: string, _tone: string) {
+  const cls = "h-7 w-7";
+  switch (name) {
+    case "watch": return <Watch strokeWidth={1.3} className={cls} />;
+    case "gem": return <Gem strokeWidth={1.3} className={cls} />;
+    case "shield": return <ShieldCheck strokeWidth={1.3} className={cls} />;
+    case "bag": return <ShoppingBag strokeWidth={1.3} className={cls} />;
+    case "sparkles": return <Sparkles strokeWidth={1.3} className={cls} />;
+    default: return <Sparkles strokeWidth={1.3} className={cls} />;
+  }
 }
 
 function CategoryCard({ image, title, subtitle, to }: { image: string; title: string; subtitle: string; to: string }) {
