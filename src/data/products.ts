@@ -12,6 +12,7 @@ export type Product = {
   gallery: string[];
   description: string;
   warranty: string;
+  stock: number | null; // null = ilimitado
 };
 
 // Mapeador de fila de BD → tipo Product usado por la UI
@@ -29,6 +30,7 @@ type DbRow = {
   gallery: unknown;
   description: string;
   warranty: string;
+  stock?: number | null;
   product_images?: Array<{ url: string; sort_order: number; is_primary: boolean }> | null;
 };
 
@@ -53,6 +55,7 @@ export function mapProduct(row: DbRow): Product {
     gallery,
     description: row.description,
     warranty: row.warranty,
+    stock: typeof row.stock === "number" ? row.stock : null,
   };
 }
 
