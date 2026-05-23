@@ -26,6 +26,11 @@ import {
   upsertPromotion,
   deletePromotion,
 } from "@/lib/promotions.functions";
+import {
+  adminListOrders,
+  updateOrderStatus,
+  deleteOrder,
+} from "@/lib/orders.functions";
 import { formatCOP } from "@/data/products";
 
 export const Route = createFileRoute("/admin")({
@@ -158,6 +163,10 @@ function AdminPage() {
       <div className="gold-divider my-12" />
 
       <PromotionsAdmin products={productsQ.data ?? []} />
+
+      <div className="gold-divider my-12" />
+
+      <OrdersAdmin />
 
       <div className="gold-divider my-12" />
 
