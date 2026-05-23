@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { ArrowRight, ShieldCheck, Sparkles, Gem } from "lucide-react";
+import { Watch, ShoppingBag } from "lucide-react";
 import catWatches from "@/assets/cat-watches.jpg";
 import catJewelry from "@/assets/cat-jewelry.jpg";
 import emotional from "@/assets/emotional-banner.jpg";
@@ -44,6 +45,16 @@ function Home() {
     <div>
       {/* Hero carrusel administrable */}
       <HeroCarousel banners={banners} />
+
+      {/* Pilares de marca */}
+      <section className="bg-wine text-background">
+        <div className="mx-auto grid max-w-7xl grid-cols-2 gap-y-8 px-6 py-10 md:grid-cols-4 md:gap-0 md:px-10 md:py-8">
+          <Pillar icon={<Watch strokeWidth={1.3} className="h-6 w-6" />} title="Relojería" text="Marcas que marcan tu tiempo." />
+          <Pillar icon={<Gem strokeWidth={1.3} className="h-6 w-6" />} title="Joyería" text="Brillos que cuentan tu historia." />
+          <Pillar icon={<ShieldCheck strokeWidth={1.3} className="h-6 w-6" />} title="Confianza" text="Productos originales, garantía y respaldo." />
+          <Pillar icon={<ShoppingBag strokeWidth={1.3} className="h-6 w-6" />} title="Experiencia" text="Asesoría personalizada en cada detalle." />
+        </div>
+      </section>
 
       {/* Categorías */}
       <section className="mx-auto max-w-7xl px-6 py-24 md:px-10 md:py-32">
@@ -124,6 +135,18 @@ function Benefit({ icon, title, text }: { icon: React.ReactNode; title: string; 
       <div className="text-wine">{icon}</div>
       <h4 className="mt-5 font-serif text-xl">{title}</h4>
       <p className="mt-2 max-w-xs text-sm leading-relaxed text-muted-foreground">{text}</p>
+    </div>
+  );
+}
+
+function Pillar({ icon, title, text }: { icon: React.ReactNode; title: string; text: string }) {
+  return (
+    <div className="flex items-start gap-3 px-2 md:border-l md:border-gold/30 md:px-6 md:first:border-l-0">
+      <div className="text-gold">{icon}</div>
+      <div>
+        <p className="text-[11px] font-medium uppercase tracking-[0.25em] text-gold">{title}</p>
+        <p className="mt-1 text-sm leading-snug text-background/85">{text}</p>
+      </div>
     </div>
   );
 }
