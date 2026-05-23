@@ -983,3 +983,294 @@ function CategoryEditor({
     </div>
   );
 }
+// ---------- Promotions ----------
+
+type PromoRow = Awaited<ReturnType<typeof adminListPromotions>>[number];
+type PromoForm = {
+  id?: string;
+  name: string;
+  kind: "percent" | "amount";
+  value: number;
+  starts_at: string;
+  ends_at: string | null;
+  is_active: boolean;
+  product_id: string | null;
+  priority: number;
+};
+
+function PromotionsAdmin({ products }: { products: Array<{ id: string; name: string }> }) {
+  const list = useServerFn(adminListPromotions);
+  const save = useServerFn(upsertPromotion);
+  const del = useServerFn(deletePromotion);
+  const qc = useQueryClient();
+
+  const q = useQuery({ queryKey: ["admin", "promotions"], queryFn: () => list() });
+  const [editing, setEditing] = useState<Partial<PromoRow> | null>(null);
+
+  const saveM = useMutation({
+    mutationFn: (data: PromoForm) => save({ data }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "promotions"] });
+      qc.invalidateQueries({ queryKey: ["products"] });
+      qc.invalidateQueries({ queryKey: ["product"] });
+      setEditing(null);
+    },
+  });
+  const deleteM = useMutation({
+    mutationFn: (id: string) => del({ data: { id } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "promotions"] });
+      qc.invalidateQueries({ queryKey: ["products"] });
+      qc.invalidateQueries({ queryKey: ["product"] });
+    },
+  });
+
+  const fmtDate = (s: string | null | undefined) =>
+    s ? new Date(s).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+
+  return (
+    <section>
+      <div className="mb-6 flex items-end justify-between gap-4">
+        <h2 className="font-serif text-2xl">Promociones</h2>
+        <button
+          onClick={() => setEditing({})}
+          className="inline-flex items-center gap-2 bg-wine px-5 py-3 text-[11px] uppercase tracking-[0.25em] text-primary-foreground hover:opacity-90"
+        >
+          <Plus className="h-4 w-4" /> Nueva promoción
+        </button>
+      </div>
+
+      {q.isLoading ? (
+        <p className="text-sm text-muted-foreground">Cargando promociones…</p>
+      ) : (q.data ?? []).length === 0 ? (
+        <p className="text-sm text-muted-foreground">Sin promociones aún.</p>
+      ) : (
+        <div className="overflow-x-auto border border-border/60">
+          <table className="w-full text-sm">
+            <thead className="bg-secondary/50 text-left text-[11px] uppercase tracking-[0.15em] text-muted-foreground">
+              <tr>
+                <th className="p-3">Nombre</th>
+                <th className="p-3">Descuento</th>
+                <th className="p-3">Aplica a</th>
+                <th className="p-3">Vigencia</th>
+                <th className="p-3">Estado</th>
+                <th className="p-3 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(q.data ?? []).map((p) => {
+                const prod = products.find((x) => x.id === p.product_id);
+                const now = Date.now();
+                const active =
+                  p.is_active &&
+                  new Date(p.starts_at).getTime() <= now &&
+                  (!p.ends_at || new Date(p.ends_at).getTime() > now);
+                return (
+                  <tr key={p.id} className="border-t border-border/60">
+                    <td className="p-3 font-serif">{p.name}</td>
+                    <td className="p-3">
+                      {p.kind === "percent" ? `${p.value}%` : formatCOP(p.value)}
+                    </td>
+                    <td className="p-3 text-xs text-muted-foreground">
+                      {prod ? prod.name : "Todos los productos"}
+                    </td>
+                    <td className="p-3 text-xs text-muted-foreground">
+                      {fmtDate(p.starts_at)} → {fmtDate(p.ends_at)}
+                    </td>
+                    <td className="p-3">
+                      <span
+                        className={`px-2 py-1 text-[10px] uppercase tracking-wider ${
+                          active ? "bg-wine text-primary-foreground" : "bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        {active ? "Vigente" : p.is_active ? "Programada/expirada" : "Inactiva"}
+                      </span>
+                    </td>
+                    <td className="p-3 text-right">
+                      <button onClick={() => setEditing(p)} aria-label="Editar" className="mr-2 p-2 hover:text-wine">
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (confirm(`¿Eliminar "${p.name}"?`)) deleteM.mutate(p.id);
+                        }}
+                        aria-label="Eliminar"
+                        className="p-2 hover:text-wine"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {editing && (
+        <PromotionEditor
+          initial={editing}
+          products={products}
+          onCancel={() => setEditing(null)}
+          saving={saveM.isPending}
+          error={saveM.error instanceof Error ? saveM.error.message : null}
+          onSubmit={(v) => saveM.mutate(v)}
+        />
+      )}
+    </section>
+  );
+}
+
+function PromotionEditor({
+  initial,
+  products,
+  onCancel,
+  onSubmit,
+  saving,
+  error,
+}: {
+  initial: Partial<PromoRow>;
+  products: Array<{ id: string; name: string }>;
+  onCancel: () => void;
+  onSubmit: (v: PromoForm) => void;
+  saving: boolean;
+  error: string | null;
+}) {
+  const toLocalInput = (iso?: string | null) => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
+  const [v, setV] = useState<PromoForm>({
+    id: initial.id,
+    name: initial.name ?? "",
+    kind: (initial.kind as "percent" | "amount") ?? "percent",
+    value: initial.value ?? 10,
+    starts_at: toLocalInput(initial.starts_at) || toLocalInput(new Date().toISOString()),
+    ends_at: toLocalInput(initial.ends_at) || "",
+    is_active: initial.is_active ?? true,
+    product_id: initial.product_id ?? null,
+    priority: initial.priority ?? 0,
+  });
+
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, []);
+
+  const set = <K extends keyof PromoForm>(k: K, val: PromoForm[K]) =>
+    setV({ ...v, [k]: val });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4">
+      <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto bg-background p-8 shadow-2xl">
+        <div className="flex items-start justify-between">
+          <h2 className="font-serif text-2xl">{v.id ? "Editar promoción" : "Nueva promoción"}</h2>
+          <button onClick={onCancel} aria-label="Cerrar" className="p-2 hover:text-wine">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            onSubmit({
+              ...v,
+              starts_at: v.starts_at ? new Date(v.starts_at).toISOString() : new Date().toISOString(),
+              ends_at: v.ends_at ? new Date(v.ends_at).toISOString() : null,
+            });
+          }}
+          className="mt-6 grid gap-4 sm:grid-cols-2"
+        >
+          <Field label="Nombre" value={v.name} onChange={(x) => set("name", x)} required className="sm:col-span-2" />
+
+          <div>
+            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Tipo</label>
+            <select
+              value={v.kind}
+              onChange={(e) => set("kind", e.target.value as "percent" | "amount")}
+              className="mt-2 w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm focus:border-wine"
+            >
+              <option value="percent">Porcentaje (%)</option>
+              <option value="amount">Monto fijo (COP)</option>
+            </select>
+          </div>
+          <FieldNumber
+            label={v.kind === "percent" ? "Valor (%)" : "Valor (COP)"}
+            value={v.value}
+            onChange={(n) => set("value", n)}
+            required
+          />
+
+          <div className="sm:col-span-2">
+            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+              Producto (vacío = aplica a todos)
+            </label>
+            <select
+              value={v.product_id ?? ""}
+              onChange={(e) => set("product_id", e.target.value || null)}
+              className="mt-2 w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm focus:border-wine"
+            >
+              <option value="">— Todos los productos —</option>
+              {products.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Inicia</label>
+            <input
+              type="datetime-local"
+              value={v.starts_at}
+              onChange={(e) => set("starts_at", e.target.value)}
+              required
+              className="mt-2 w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm focus:border-wine"
+            />
+          </div>
+          <div>
+            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+              Finaliza (vacío = sin fin)
+            </label>
+            <input
+              type="datetime-local"
+              value={v.ends_at ?? ""}
+              onChange={(e) => set("ends_at", e.target.value || null)}
+              className="mt-2 w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm focus:border-wine"
+            />
+          </div>
+
+          <FieldNumber label="Prioridad" value={v.priority} onChange={(n) => set("priority", n)} />
+          <label className="flex items-center gap-2 self-end text-sm">
+            <input
+              type="checkbox"
+              checked={v.is_active}
+              onChange={(e) => set("is_active", e.target.checked)}
+            />
+            Promoción activa
+          </label>
+
+          {error && <p className="sm:col-span-2 text-sm text-wine">{error}</p>}
+
+          <div className="sm:col-span-2 mt-2 flex justify-end gap-3">
+            <button type="button" onClick={onCancel} className="px-5 py-3 text-[11px] uppercase tracking-[0.25em] text-muted-foreground hover:text-wine">
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="bg-wine px-6 py-3 text-[11px] uppercase tracking-[0.25em] text-primary-foreground hover:opacity-90 disabled:opacity-50"
+            >
+              {saving ? "Guardando…" : "Guardar"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
