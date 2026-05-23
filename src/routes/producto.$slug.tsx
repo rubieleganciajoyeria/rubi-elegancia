@@ -1,15 +1,32 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useState } from "react";
+import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { ShieldCheck, Truck, RefreshCcw, ShoppingBag, Heart } from "lucide-react";
-import { products, formatCOP, type Product } from "@/data/products";
+import { formatCOP, mapProduct, type Product } from "@/data/products";
+import { getProductBySlug, listActiveProducts } from "@/lib/products.functions";
 import { ProductCard } from "@/components/ProductCard";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
 
+const productQueryOptions = (slug: string) =>
+  queryOptions({
+    queryKey: ["product", slug],
+    queryFn: async () => {
+      const row = await getProductBySlug({ data: { slug } });
+      return row ? mapProduct(row) : null;
+    },
+  });
+
+const relatedQueryOptions = queryOptions({
+  queryKey: ["products", "active"],
+  queryFn: async () => (await listActiveProducts()).map(mapProduct),
+});
+
 export const Route = createFileRoute("/producto/$slug")({
-  loader: ({ params }): { product: Product } => {
-    const product = products.find((p) => p.slug === params.slug);
+  loader: async ({ params, context }) => {
+    const product = await context.queryClient.ensureQueryData(productQueryOptions(params.slug));
     if (!product) throw notFound();
+    context.queryClient.ensureQueryData(relatedQueryOptions);
     return { product };
   },
   head: ({ loaderData }) => ({
@@ -43,14 +60,19 @@ export const Route = createFileRoute("/producto/$slug")({
 });
 
 function ProductDetail() {
-  const { product } = Route.useLoaderData();
+  const { slug } = Route.useParams();
+  const { data: product } = useSuspenseQuery(productQueryOptions(slug));
+  const { data: all } = useSuspenseQuery(relatedQueryOptions);
+  if (!product) throw notFound();
   const [active, setActive] = useState(0);
   const [qty, setQtyLocal] = useState(1);
   const { add, setOpen } = useCart();
   const { has, toggle } = useWishlist();
   const fav = has(product.id);
   const hasDiscount = !!product.discountPrice;
-  const related = products.filter((p) => p.id !== product.id && p.category === product.category).slice(0, 3);
+  const related: Product[] = all
+    .filter((p) => p.id !== product.id && p.category === product.category)
+    .slice(0, 3);
 
   return (
     <div>
