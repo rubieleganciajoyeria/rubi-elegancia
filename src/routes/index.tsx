@@ -34,6 +34,7 @@ export const Route = createFileRoute("/")({
       { property: "og:title", content: "Rubí — Elegancia que trasciende" },
       { property: "og:description", content: "Relojería y joyería premium en Colombia." },
     ],
+    links: [{ rel: "canonical", href: "/" }],
   }),
   loader: ({ context }) => {
     context.queryClient.ensureQueryData(bannersQueryOptions);
