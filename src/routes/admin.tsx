@@ -40,7 +40,7 @@ function AdminPage() {
   const [editing, setEditing] = useState<Partial<ProductRow> | null>(null);
 
   const saveM = useMutation({
-    mutationFn: (data: Parameters<typeof save>[0]["data"]) => save({ data }),
+    mutationFn: (data: FormValues) => save({ data }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin", "products"] });
       qc.invalidateQueries({ queryKey: ["products"] });
