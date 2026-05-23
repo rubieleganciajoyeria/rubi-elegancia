@@ -3,6 +3,7 @@ import { Fragment, useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Pencil, Trash2, Plus, LogOut, X } from "lucide-react";
+import { WompiEnvBadge } from "@/components/WompiEnvBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { ImageUpload } from "@/components/ImageUpload";
 import {
@@ -603,7 +604,10 @@ function OrdersAdmin() {
 
   return (
     <section>
-      <h2 className="mb-6 font-serif text-2xl">Pedidos</h2>
+      <div className="mb-6 flex flex-wrap items-center gap-3">
+        <h2 className="font-serif text-2xl">Pedidos</h2>
+        <WompiEnvBadge />
+      </div>
       <div className="mb-4 flex flex-wrap gap-3">
         <input
           value={refFilter}

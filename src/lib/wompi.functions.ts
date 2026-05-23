@@ -179,3 +179,13 @@ export const retryWompiPayment = createServerFn({ method: "POST" })
       signature,
     };
   });
+
+export const getWompiEnvironment = createServerFn({ method: "GET" }).handler(async () => {
+  const publicKey = process.env.WOMPI_PUBLIC_KEY ?? "";
+  const isSandbox = publicKey.startsWith("pub_test_") || publicKey.startsWith("pub_stagtest_");
+  const isProd = publicKey.startsWith("pub_prod_");
+  return {
+    environment: isSandbox ? "sandbox" : isProd ? "production" : "unknown",
+    configured: publicKey.length > 0,
+  } as const;
+});

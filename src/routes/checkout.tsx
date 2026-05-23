@@ -8,6 +8,7 @@ import { createWompiCheckout } from "@/lib/wompi.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { getGlobalSettings } from "@/lib/site-content.functions";
+import { WompiEnvBadge } from "@/components/WompiEnvBadge";
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({
@@ -125,7 +126,10 @@ function CheckoutPage() {
   return (
     <div className="mx-auto max-w-7xl px-6 py-14 md:px-10 md:py-20">
       <p className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground">Paso final</p>
-      <h1 className="mt-3 font-serif text-4xl md:text-5xl">Checkout</h1>
+      <div className="mt-3 flex flex-wrap items-center gap-4">
+        <h1 className="font-serif text-4xl md:text-5xl">Checkout</h1>
+        <WompiEnvBadge />
+      </div>
       <div className="gold-divider mt-6" />
 
       <div className="mt-12 grid gap-12 md:grid-cols-[1.3fr_1fr]">
