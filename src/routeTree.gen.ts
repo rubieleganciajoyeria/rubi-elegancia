@@ -17,6 +17,7 @@ import { Route as CatalogoRouteImport } from './routes/catalogo'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProductoSlugRouteImport } from './routes/producto.$slug'
+import { Route as CheckoutConfirmacionRouteImport } from './routes/checkout.confirmacion'
 import { Route as ApiPublicWompiWebhookRouteImport } from './routes/api/public/wompi-webhook'
 
 const LoginRoute = LoginRouteImport.update({
@@ -59,6 +60,11 @@ const ProductoSlugRoute = ProductoSlugRouteImport.update({
   path: '/producto/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CheckoutConfirmacionRoute = CheckoutConfirmacionRouteImport.update({
+  id: '/confirmacion',
+  path: '/confirmacion',
+  getParentRoute: () => CheckoutRoute,
+} as any)
 const ApiPublicWompiWebhookRoute = ApiPublicWompiWebhookRouteImport.update({
   id: '/api/public/wompi-webhook',
   path: '/api/public/wompi-webhook',
@@ -69,10 +75,11 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/catalogo': typeof CatalogoRoute
-  '/checkout': typeof CheckoutRoute
+  '/checkout': typeof CheckoutRouteWithChildren
   '/cuenta': typeof CuentaRoute
   '/favoritos': typeof FavoritosRoute
   '/login': typeof LoginRoute
+  '/checkout/confirmacion': typeof CheckoutConfirmacionRoute
   '/producto/$slug': typeof ProductoSlugRoute
   '/api/public/wompi-webhook': typeof ApiPublicWompiWebhookRoute
 }
@@ -80,10 +87,11 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/catalogo': typeof CatalogoRoute
-  '/checkout': typeof CheckoutRoute
+  '/checkout': typeof CheckoutRouteWithChildren
   '/cuenta': typeof CuentaRoute
   '/favoritos': typeof FavoritosRoute
   '/login': typeof LoginRoute
+  '/checkout/confirmacion': typeof CheckoutConfirmacionRoute
   '/producto/$slug': typeof ProductoSlugRoute
   '/api/public/wompi-webhook': typeof ApiPublicWompiWebhookRoute
 }
@@ -92,10 +100,11 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/catalogo': typeof CatalogoRoute
-  '/checkout': typeof CheckoutRoute
+  '/checkout': typeof CheckoutRouteWithChildren
   '/cuenta': typeof CuentaRoute
   '/favoritos': typeof FavoritosRoute
   '/login': typeof LoginRoute
+  '/checkout/confirmacion': typeof CheckoutConfirmacionRoute
   '/producto/$slug': typeof ProductoSlugRoute
   '/api/public/wompi-webhook': typeof ApiPublicWompiWebhookRoute
 }
@@ -109,6 +118,7 @@ export interface FileRouteTypes {
     | '/cuenta'
     | '/favoritos'
     | '/login'
+    | '/checkout/confirmacion'
     | '/producto/$slug'
     | '/api/public/wompi-webhook'
   fileRoutesByTo: FileRoutesByTo
@@ -120,6 +130,7 @@ export interface FileRouteTypes {
     | '/cuenta'
     | '/favoritos'
     | '/login'
+    | '/checkout/confirmacion'
     | '/producto/$slug'
     | '/api/public/wompi-webhook'
   id:
@@ -131,6 +142,7 @@ export interface FileRouteTypes {
     | '/cuenta'
     | '/favoritos'
     | '/login'
+    | '/checkout/confirmacion'
     | '/producto/$slug'
     | '/api/public/wompi-webhook'
   fileRoutesById: FileRoutesById
@@ -139,7 +151,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
   CatalogoRoute: typeof CatalogoRoute
-  CheckoutRoute: typeof CheckoutRoute
+  CheckoutRoute: typeof CheckoutRouteWithChildren
   CuentaRoute: typeof CuentaRoute
   FavoritosRoute: typeof FavoritosRoute
   LoginRoute: typeof LoginRoute
@@ -205,6 +217,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProductoSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/checkout/confirmacion': {
+      id: '/checkout/confirmacion'
+      path: '/confirmacion'
+      fullPath: '/checkout/confirmacion'
+      preLoaderRoute: typeof CheckoutConfirmacionRouteImport
+      parentRoute: typeof CheckoutRoute
+    }
     '/api/public/wompi-webhook': {
       id: '/api/public/wompi-webhook'
       path: '/api/public/wompi-webhook'
@@ -215,11 +234,23 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface CheckoutRouteChildren {
+  CheckoutConfirmacionRoute: typeof CheckoutConfirmacionRoute
+}
+
+const CheckoutRouteChildren: CheckoutRouteChildren = {
+  CheckoutConfirmacionRoute: CheckoutConfirmacionRoute,
+}
+
+const CheckoutRouteWithChildren = CheckoutRoute._addFileChildren(
+  CheckoutRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
   CatalogoRoute: CatalogoRoute,
-  CheckoutRoute: CheckoutRoute,
+  CheckoutRoute: CheckoutRouteWithChildren,
   CuentaRoute: CuentaRoute,
   FavoritosRoute: FavoritosRoute,
   LoginRoute: LoginRoute,
