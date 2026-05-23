@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Search, ShoppingBag, User, Heart } from "lucide-react";
+import { Search, ShoppingBag, User, Heart, Menu, X } from "lucide-react";
 import { useState } from "react";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
@@ -11,12 +11,14 @@ export function Header() {
   const favCount = ids.length;
   const navigate = useNavigate();
   const [searchOpen, setSearchOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [q, setQ] = useState("");
   const submitSearch = (e: React.FormEvent) => {
     e.preventDefault();
     const term = q.trim();
     navigate({ to: "/catalogo", search: { q: term.length > 0 ? term : undefined } as never });
     setSearchOpen(false);
+    setMenuOpen(false);
   };
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border/60 bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/75">
@@ -26,6 +28,13 @@ export function Header() {
         </p>
       </div>
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6 md:h-20 md:px-10">
+        <button
+          aria-label="Menú"
+          onClick={() => setMenuOpen((v) => !v)}
+          className="flex-1 text-left hover:text-wine md:hidden"
+        >
+          {menuOpen ? <X className="h-5 w-5" strokeWidth={1.4} /> : <Menu className="h-5 w-5" strokeWidth={1.4} />}
+        </button>
         <nav className="hidden flex-1 items-center gap-8 text-[0.78rem] uppercase tracking-[0.18em] text-foreground/80 md:flex">
           <Link to="/catalogo" search={{ cat: "relojeria" } as never} className="hover:text-wine transition-colors">
             Relojería
@@ -45,8 +54,8 @@ export function Header() {
         <div className="flex flex-1 items-center justify-end gap-5 text-foreground/80">
           <button
             aria-label="Buscar"
-            onClick={() => setSearchOpen((v) => !v)}
-            className="hidden hover:text-wine md:block"
+            onClick={() => { setSearchOpen((v) => !v); setMenuOpen(false); }}
+            className="hover:text-wine"
           >
             <Search className="h-[18px] w-[18px]" strokeWidth={1.4} />
           </button>
@@ -75,6 +84,21 @@ export function Header() {
           </button>
         </div>
       </div>
+      {menuOpen && (
+        <div className="border-t border-border/60 bg-background md:hidden">
+          <nav className="mx-auto flex max-w-7xl flex-col px-6 py-4 text-sm uppercase tracking-[0.2em] text-foreground/80">
+            <Link to="/catalogo" search={{ cat: "relojeria" } as never} onClick={() => setMenuOpen(false)} className="py-3 hover:text-wine">Relojería</Link>
+            <Link to="/catalogo" search={{ cat: "joyeria" } as never} onClick={() => setMenuOpen(false)} className="py-3 hover:text-wine">Joyería</Link>
+            <Link to="/catalogo" onClick={() => setMenuOpen(false)} className="py-3 hover:text-wine">Colección</Link>
+            <div className="my-2 h-px bg-border/60" />
+            <Link to="/favoritos" onClick={() => setMenuOpen(false)} className="flex items-center justify-between py-3 hover:text-wine">
+              <span>Favoritos</span>
+              {favCount > 0 && <span className="text-[10px] text-wine">{favCount}</span>}
+            </Link>
+            <Link to="/cuenta" onClick={() => setMenuOpen(false)} className="py-3 hover:text-wine">Mi cuenta</Link>
+          </nav>
+        </div>
+      )}
       {searchOpen && (
         <div className="border-t border-border/60 bg-background">
           <form onSubmit={submitSearch} className="mx-auto flex max-w-7xl items-center gap-3 px-6 py-3 md:px-10">
