@@ -263,6 +263,7 @@ type FormValues = {
   warranty: string;
   is_active: boolean;
   sort_order: number;
+  stock: number | null;
   images: Array<{ url: string; alt: string }>;
 };
 
@@ -306,6 +307,7 @@ function ProductEditor({
     warranty: initial.warranty ?? "",
     is_active: initial.is_active ?? true,
     sort_order: initial.sort_order ?? 0,
+    stock: (initial as { stock?: number | null }).stock ?? null,
     images: initialImages,
   });
 
@@ -461,6 +463,21 @@ function ProductEditor({
           <Field label="Garantía" value={v.warranty} onChange={(x) => set("warranty", x)} className="sm:col-span-2" />
 
           <FieldNumber label="Orden" value={v.sort_order} onChange={(n) => set("sort_order", n)} />
+          <div>
+            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+              Stock (vacío = ilimitado)
+            </label>
+            <input
+              type="number"
+              min={0}
+              value={v.stock ?? ""}
+              onChange={(e) => {
+                const val = e.target.value;
+                set("stock", val === "" ? null : Math.max(0, Number(val)));
+              }}
+              className="mt-2 w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm focus:border-wine"
+            />
+          </div>
           <label className="flex items-center gap-2 self-end text-sm">
             <input
               type="checkbox"
