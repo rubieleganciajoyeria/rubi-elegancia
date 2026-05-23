@@ -85,8 +85,9 @@ function ProductDetail() {
             <img
               src={product.gallery[active]}
               alt={product.name}
-              width={1000}
-              height={1200}
+              width={800}
+              height={1000}
+              decoding="async"
               className="h-full w-full object-cover transition-transform duration-700 hover:scale-105"
             />
           </div>
@@ -99,7 +100,7 @@ function ProductDetail() {
                   i === active ? "ring-1 ring-wine" : "opacity-70 hover:opacity-100"
                 }`}
               >
-                <img src={img} alt="" className="h-full w-full object-cover" />
+                <img src={img} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
               </button>
             ))}
           </div>

@@ -81,7 +81,7 @@ function Home() {
 
       {/* Banner emocional */}
       <section className="relative h-[60vh] min-h-[460px] w-full overflow-hidden">
-        <img src={emo.image || emotional} alt="" width={1920} height={1000} loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
+        <img src={emo.image || emotional} alt="" width={1920} height={1000} loading="lazy" decoding="async" className="absolute inset-0 h-full w-full object-cover" />
         <div className="absolute inset-0 bg-foreground/45" />
         <div className="relative z-10 mx-auto flex h-full max-w-3xl flex-col items-center justify-center px-6 text-center">
           <p className="text-xs uppercase tracking-[0.35em] text-background/80">{emo.eyebrow || "El regalo perfecto"}</p>

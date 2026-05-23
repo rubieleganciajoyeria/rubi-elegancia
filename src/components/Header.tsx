@@ -3,7 +3,7 @@ import { Search, ShoppingBag, User, Heart } from "lucide-react";
 import { useState } from "react";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
-import rubiLogo from "@/assets/rubi-logo.png";
+import rubiLogo from "@/assets/rubi-logo.jpg";
 
 export function Header() {
   const { count, setOpen } = useCart();
