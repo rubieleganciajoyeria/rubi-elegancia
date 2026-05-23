@@ -133,3 +133,49 @@ export const createWompiCheckout = createServerFn({ method: "POST" })
       signature,
     };
   });
+
+export const getOrderPaymentStatus = createServerFn({ method: "GET" })
+  .inputValidator((input) => z.object({ reference: z.string().min(1).max(200) }).parse(input))
+  .handler(async ({ data }) => {
+    const { data: order, error } = await supabaseAdmin
+      .from("orders")
+      .select("id,status,total,wompi_reference,wompi_transaction_id,customer_email,customer_name")
+      .eq("wompi_reference", data.reference)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!order) return null;
+    return order;
+  });
+
+export const retryWompiPayment = createServerFn({ method: "POST" })
+  .inputValidator((input) => z.object({ reference: z.string().min(1).max(200) }).parse(input))
+  .handler(async ({ data }) => {
+    const publicKey = process.env.WOMPI_PUBLIC_KEY;
+    const integrity = process.env.WOMPI_INTEGRITY_SECRET;
+    if (!publicKey || !integrity) throw new Error("Wompi no está configurado");
+
+    const { data: order, error } = await supabaseAdmin
+      .from("orders")
+      .select("id,total,status,wompi_reference")
+      .eq("wompi_reference", data.reference)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!order) throw new Error("Pedido no encontrado");
+    if (order.status === "paid" || order.status === "shipped" || order.status === "delivered") {
+      throw new Error("Este pedido ya fue pagado");
+    }
+
+    const amountInCents = Number(order.total) * 100;
+    const currency = "COP";
+    const signature = createHash("sha256")
+      .update(`${order.wompi_reference}${amountInCents}${currency}${integrity}`)
+      .digest("hex");
+
+    return {
+      reference: order.wompi_reference,
+      amountInCents,
+      currency,
+      publicKey,
+      signature,
+    };
+  });
