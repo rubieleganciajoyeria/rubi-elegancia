@@ -255,6 +255,7 @@ type FormValues = {
   warranty: string;
   is_active: boolean;
   sort_order: number;
+  images: Array<{ url: string; alt: string }>;
 };
 
 function ProductEditor({
@@ -272,6 +273,15 @@ function ProductEditor({
   saving: boolean;
   error: string | null;
 }) {
+  const initialImages: Array<{ url: string; alt: string }> = (() => {
+    const pi = (initial as { product_images?: Array<{ url: string; alt: string; sort_order: number }> }).product_images;
+    if (Array.isArray(pi) && pi.length > 0) {
+      return [...pi].sort((a, b) => a.sort_order - b.sort_order).map((i) => ({ url: i.url, alt: i.alt ?? "" }));
+    }
+    const legacy = [initial.image, ...(Array.isArray(initial.gallery) ? (initial.gallery as string[]) : [])].filter(Boolean) as string[];
+    return legacy.map((url) => ({ url, alt: "" }));
+  })();
+
   const [v, setV] = useState<FormValues>({
     id: initial.id,
     slug: initial.slug ?? "",
@@ -282,12 +292,13 @@ function ProductEditor({
     material: initial.material ?? "",
     price: initial.price ?? 0,
     discount_price: initial.discount_price ?? null,
-    image: initial.image ?? "",
+    image: initialImages[0]?.url ?? initial.image ?? "",
     gallery: Array.isArray(initial.gallery) ? (initial.gallery as string[]) : [],
     description: initial.description ?? "",
     warranty: initial.warranty ?? "",
     is_active: initial.is_active ?? true,
     sort_order: initial.sort_order ?? 0,
+    images: initialImages,
   });
 
   // Bloquea scroll body
@@ -352,13 +363,82 @@ function ProductEditor({
             onChange={(n) => set("discount_price", n > 0 ? n : null)}
           />
 
-          <Field label="Imagen principal (URL o /products/…)" value={v.image} onChange={(x) => set("image", x)} required className="sm:col-span-2" />
-          <Field
-            label="Galería (URLs separadas por coma)"
-            value={v.gallery.join(", ")}
-            onChange={(x) => set("gallery", x.split(",").map((s) => s.trim()).filter(Boolean))}
-            className="sm:col-span-2"
-          />
+          <div className="sm:col-span-2">
+            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+              Imágenes (la primera es la principal)
+            </label>
+            <div className="mt-2 space-y-2">
+              {v.images.map((img, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <span className="w-6 text-xs text-muted-foreground">{idx + 1}.</span>
+                  <input
+                    value={img.url}
+                    onChange={(e) => {
+                      const next = [...v.images];
+                      next[idx] = { ...next[idx], url: e.target.value };
+                      setV({ ...v, images: next, image: next[0]?.url ?? "" });
+                    }}
+                    placeholder="URL o /products/foto.jpg"
+                    className="flex-1 border border-foreground/20 bg-transparent px-3 py-2 text-sm focus:border-wine"
+                  />
+                  <input
+                    value={img.alt}
+                    onChange={(e) => {
+                      const next = [...v.images];
+                      next[idx] = { ...next[idx], alt: e.target.value };
+                      setV({ ...v, images: next });
+                    }}
+                    placeholder="alt"
+                    className="w-32 border border-foreground/20 bg-transparent px-3 py-2 text-sm focus:border-wine"
+                  />
+                  <button
+                    type="button"
+                    disabled={idx === 0}
+                    onClick={() => {
+                      const next = [...v.images];
+                      [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
+                      setV({ ...v, images: next, image: next[0]?.url ?? "" });
+                    }}
+                    className="px-2 py-2 text-xs hover:text-wine disabled:opacity-30"
+                    aria-label="Subir"
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    disabled={idx === v.images.length - 1}
+                    onClick={() => {
+                      const next = [...v.images];
+                      [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
+                      setV({ ...v, images: next, image: next[0]?.url ?? "" });
+                    }}
+                    className="px-2 py-2 text-xs hover:text-wine disabled:opacity-30"
+                    aria-label="Bajar"
+                  >
+                    ↓
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = v.images.filter((_, i) => i !== idx);
+                      setV({ ...v, images: next, image: next[0]?.url ?? "" });
+                    }}
+                    className="px-2 py-2 text-xs hover:text-wine"
+                    aria-label="Eliminar"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => setV({ ...v, images: [...v.images, { url: "", alt: "" }] })}
+                className="text-[11px] uppercase tracking-[0.25em] text-wine hover:opacity-80"
+              >
+                + Añadir imagen
+              </button>
+            </div>
+          </div>
 
           <div className="sm:col-span-2">
             <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Descripción</label>
