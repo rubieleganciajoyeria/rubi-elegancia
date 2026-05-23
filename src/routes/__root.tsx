@@ -83,11 +83,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: "Rubí — Relojería & Joyería | Elegancia que trasciende" },
       { name: "description", content: "Relojería y joyería premium. Piezas seleccionadas que celebran los momentos importantes. Envío y garantía en todo el país." },
       { name: "author", content: "Rubí" },
-      { property: "og:title", content: "Rubí — Elegancia que trasciende" },
-      { property: "og:description", content: "Relojería y joyería premium. Piezas seleccionadas que celebran los momentos importantes." },
+      { property: "og:title", content: "Rubí — Relojería & Joyería | Elegancia que trasciende" },
+      { property: "og:description", content: "Relojería y joyería premium. Piezas seleccionadas que celebran los momentos importantes. Envío y garantía en todo el país." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "Rubí — Relojería & Joyería | Elegancia que trasciende" },
+      { name: "twitter:description", content: "Relojería y joyería premium. Piezas seleccionadas que celebran los momentos importantes. Envío y garantía en todo el país." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/9e65ee21-1732-4909-82a1-53c0ff79676a/id-preview-09a18a16--6a50b2d9-6abb-4961-b9b5-4f6201a1689c.lovable.app-1779545011696.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/9e65ee21-1732-4909-82a1-53c0ff79676a/id-preview-09a18a16--6a50b2d9-6abb-4961-b9b5-4f6201a1689c.lovable.app-1779545011696.png" },
     ],
     links: [
       {
