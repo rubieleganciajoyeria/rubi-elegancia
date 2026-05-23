@@ -29,9 +29,16 @@ type DbRow = {
   gallery: unknown;
   description: string;
   warranty: string;
+  product_images?: Array<{ url: string; sort_order: number; is_primary: boolean }> | null;
 };
 
 export function mapProduct(row: DbRow): Product {
+  const imgs = Array.isArray(row.product_images) ? [...row.product_images] : [];
+  imgs.sort((a, b) => a.sort_order - b.sort_order);
+  const orderedUrls = imgs.map((i) => i.url);
+  const legacyGallery = Array.isArray(row.gallery) ? (row.gallery as string[]) : [];
+  const gallery = orderedUrls.length > 0 ? orderedUrls : [row.image, ...legacyGallery].filter(Boolean);
+  const primary = gallery[0] ?? row.image ?? "";
   return {
     id: row.id,
     slug: row.slug,
@@ -42,8 +49,8 @@ export function mapProduct(row: DbRow): Product {
     material: row.material,
     price: row.price,
     discountPrice: row.discount_price ?? undefined,
-    image: row.image,
-    gallery: Array.isArray(row.gallery) ? (row.gallery as string[]) : [],
+    image: primary,
+    gallery,
     description: row.description,
     warranty: row.warranty,
   };
