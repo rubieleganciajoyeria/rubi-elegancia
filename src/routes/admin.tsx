@@ -30,6 +30,7 @@ import {
   adminListOrders,
   updateOrderStatus,
   deleteOrder,
+  adminGetMetrics,
 } from "@/lib/orders.functions";
 import {
   listSiteContent,
@@ -157,6 +158,10 @@ function AdminPage() {
       </div>
 
       <div className="gold-divider my-8" />
+
+      <DashboardAdmin />
+
+      <div className="gold-divider my-12" />
 
       <BannersAdmin />
 
@@ -1588,5 +1593,128 @@ function Labeled({ label, children, className = "" }: { label: string; children:
       <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">{label}</label>
       <div className="mt-2">{children}</div>
     </div>
+  );
+}
+
+function DashboardAdmin() {
+  const metrics = useServerFn(adminGetMetrics);
+  const q = useQuery({ queryKey: ["admin", "metrics"], queryFn: () => metrics() });
+
+  if (q.isLoading) {
+    return (
+      <section>
+        <h2 className="mb-6 font-serif text-2xl">Dashboard</h2>
+        <p className="text-sm text-muted-foreground">Cargando métricas…</p>
+      </section>
+    );
+  }
+  if (q.error || !q.data) {
+    return (
+      <section>
+        <h2 className="mb-6 font-serif text-2xl">Dashboard</h2>
+        <p className="text-sm text-destructive">Error cargando métricas.</p>
+      </section>
+    );
+  }
+
+  const { totals, ordersByStatus, days, topProducts, lowStock } = q.data;
+  const maxRev = Math.max(1, ...days.map((d) => d.revenue));
+
+  const cards: { label: string; value: string }[] = [
+    { label: "Ingresos (total)", value: formatCOP(totals.revenueAll) },
+    { label: "Ingresos · 30 días", value: formatCOP(totals.revenue30) },
+    { label: "Ingresos · 7 días", value: formatCOP(totals.revenue7) },
+    { label: "Pedidos totales", value: String(totals.ordersAll) },
+    { label: "Pendientes", value: String(totals.pending) },
+    { label: "Productos activos", value: String(totals.activeProducts) },
+  ];
+
+  return (
+    <section>
+      <h2 className="mb-6 font-serif text-2xl">Dashboard</h2>
+
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+        {cards.map((c) => (
+          <div key={c.label} className="border border-border/60 p-4">
+            <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">{c.label}</div>
+            <div className="mt-2 font-serif text-lg">{c.value}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-8 grid gap-6 lg:grid-cols-3">
+        <div className="border border-border/60 p-5 lg:col-span-2">
+          <h3 className="mb-4 text-sm uppercase tracking-[0.18em] text-muted-foreground">
+            Ingresos · últimos 14 días
+          </h3>
+          <div className="flex h-40 items-end gap-1">
+            {days.map((d) => (
+              <div key={d.date} className="flex flex-1 flex-col items-center gap-1" title={`${d.date}: ${formatCOP(d.revenue)} · ${d.orders} pedidos`}>
+                <div
+                  className="w-full bg-wine/80"
+                  style={{ height: `${(d.revenue / maxRev) * 100}%`, minHeight: d.revenue > 0 ? 2 : 0 }}
+                />
+              </div>
+            ))}
+          </div>
+          <div className="mt-2 flex justify-between text-[10px] text-muted-foreground">
+            <span>{days[0]?.date.slice(5)}</span>
+            <span>{days[days.length - 1]?.date.slice(5)}</span>
+          </div>
+        </div>
+
+        <div className="border border-border/60 p-5">
+          <h3 className="mb-4 text-sm uppercase tracking-[0.18em] text-muted-foreground">Pedidos por estado</h3>
+          <ul className="space-y-2 text-sm">
+            {["pending", "confirmed", "paid", "shipped", "delivered", "cancelled"].map((s) => (
+              <li key={s} className="flex items-center justify-between">
+                <span className="capitalize text-muted-foreground">{s}</span>
+                <span className="font-medium">{ordersByStatus[s] ?? 0}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      <div className="mt-8 grid gap-6 lg:grid-cols-2">
+        <div className="border border-border/60 p-5">
+          <h3 className="mb-4 text-sm uppercase tracking-[0.18em] text-muted-foreground">
+            Top productos · 30 días
+          </h3>
+          {topProducts.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Sin ventas aún.</p>
+          ) : (
+            <ul className="divide-y divide-border/60 text-sm">
+              {topProducts.map((p, i) => (
+                <li key={i} className="flex items-center justify-between py-2">
+                  <span className="truncate pr-3">{p.name}</span>
+                  <span className="shrink-0 text-muted-foreground">
+                    {p.qty} uds · {formatCOP(p.revenue)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div className="border border-border/60 p-5">
+          <h3 className="mb-4 text-sm uppercase tracking-[0.18em] text-muted-foreground">Stock bajo</h3>
+          {lowStock.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Todo el inventario tiene stock saludable.</p>
+          ) : (
+            <ul className="divide-y divide-border/60 text-sm">
+              {lowStock.map((p) => (
+                <li key={p.id} className="flex items-center justify-between py-2">
+                  <span className="truncate pr-3">{p.name}</span>
+                  <span className={`shrink-0 ${(p.stock ?? 0) === 0 ? "text-destructive" : "text-wine"}`}>
+                    {p.stock ?? 0} uds
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </section>
   );
 }

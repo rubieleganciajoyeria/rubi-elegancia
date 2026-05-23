@@ -162,3 +162,100 @@ export const deleteOrder = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+export const adminGetMetrics = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const now = new Date();
+    const since30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const since7 = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+    const [ordersRes, productsRes, itemsRes] = await Promise.all([
+      supabaseAdmin
+        .from("orders")
+        .select("id,status,total,created_at")
+        .order("created_at", { ascending: false })
+        .limit(1000),
+      supabaseAdmin.from("products").select("id,name,stock,is_active"),
+      supabaseAdmin
+        .from("order_items")
+        .select("product_id,product_name,qty,subtotal,created_at")
+        .gte("created_at", since30)
+        .limit(2000),
+    ]);
+    if (ordersRes.error) throw new Error(ordersRes.error.message);
+    if (productsRes.error) throw new Error(productsRes.error.message);
+    if (itemsRes.error) throw new Error(itemsRes.error.message);
+
+    const orders = ordersRes.data ?? [];
+    const products = productsRes.data ?? [];
+    const items = itemsRes.data ?? [];
+
+    const paidOrCompleted = (s: string) =>
+      s === "paid" || s === "shipped" || s === "delivered" || s === "confirmed";
+
+    const totalRevenue = orders
+      .filter((o) => paidOrCompleted(o.status))
+      .reduce((s, o) => s + Number(o.total ?? 0), 0);
+    const revenue30 = orders
+      .filter((o) => paidOrCompleted(o.status) && o.created_at >= since30)
+      .reduce((s, o) => s + Number(o.total ?? 0), 0);
+    const revenue7 = orders
+      .filter((o) => paidOrCompleted(o.status) && o.created_at >= since7)
+      .reduce((s, o) => s + Number(o.total ?? 0), 0);
+
+    const ordersByStatus = orders.reduce<Record<string, number>>((acc, o) => {
+      acc[o.status] = (acc[o.status] ?? 0) + 1;
+      return acc;
+    }, {});
+
+    // Daily revenue (last 14 days)
+    const days: { date: string; revenue: number; orders: number }[] = [];
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+      const key = d.toISOString().slice(0, 10);
+      days.push({ date: key, revenue: 0, orders: 0 });
+    }
+    const dayIdx = new Map(days.map((d, i) => [d.date, i]));
+    for (const o of orders) {
+      const key = String(o.created_at).slice(0, 10);
+      const i = dayIdx.get(key);
+      if (i === undefined) continue;
+      days[i].orders += 1;
+      if (paidOrCompleted(o.status)) days[i].revenue += Number(o.total ?? 0);
+    }
+
+    // Top products (last 30d, by qty)
+    const byProduct = new Map<string, { name: string; qty: number; revenue: number }>();
+    for (const it of items) {
+      const key = it.product_id ?? it.product_name;
+      const cur = byProduct.get(key) ?? { name: it.product_name, qty: 0, revenue: 0 };
+      cur.qty += Number(it.qty ?? 0);
+      cur.revenue += Number(it.subtotal ?? 0);
+      byProduct.set(key, cur);
+    }
+    const topProducts = Array.from(byProduct.values())
+      .sort((a, b) => b.qty - a.qty)
+      .slice(0, 5);
+
+    const lowStock = products
+      .filter((p) => p.is_active && typeof p.stock === "number" && (p.stock ?? 0) <= 3)
+      .sort((a, b) => (a.stock ?? 0) - (b.stock ?? 0))
+      .slice(0, 10);
+
+    return {
+      totals: {
+        revenueAll: totalRevenue,
+        revenue30,
+        revenue7,
+        ordersAll: orders.length,
+        pending: ordersByStatus.pending ?? 0,
+        activeProducts: products.filter((p) => p.is_active).length,
+      },
+      ordersByStatus,
+      days,
+      topProducts,
+      lowStock,
+    };
+  });
