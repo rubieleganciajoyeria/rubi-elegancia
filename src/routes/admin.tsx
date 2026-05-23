@@ -603,7 +603,10 @@ function OrdersAdmin() {
 
   return (
     <section>
-      <h2 className="mb-6 font-serif text-2xl">Pedidos</h2>
+      <div className="mb-6 flex flex-wrap items-center gap-3">
+        <h2 className="font-serif text-2xl">Pedidos</h2>
+        <WompiEnvBadge />
+      </div>
       <div className="mb-4 flex flex-wrap gap-3">
         <input
           value={refFilter}
