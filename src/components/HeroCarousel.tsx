@@ -43,6 +43,10 @@ export function HeroCarousel({ banners }: { banners: Banner[] }) {
               <img
                 src={b.image}
                 alt={b.title || b.eyebrow || "Banner"}
+                width={1920}
+                height={1080}
+                fetchPriority="high"
+                decoding="async"
                 className="absolute inset-0 h-full w-full object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-foreground/65 via-foreground/20 to-transparent" />
