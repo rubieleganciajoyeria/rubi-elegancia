@@ -92,6 +92,47 @@ export type Database = {
         }
         Relationships: []
       }
+      product_images: {
+        Row: {
+          alt: string
+          created_at: string
+          id: string
+          is_primary: boolean
+          product_id: string
+          sort_order: number
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          alt?: string
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+          product_id: string
+          sort_order?: number
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          alt?: string
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+          product_id?: string
+          sort_order?: number
+          updated_at?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_images_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           brand: string
