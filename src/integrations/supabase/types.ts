@@ -164,6 +164,8 @@ export type Database = {
           total: number
           updated_at: string
           user_id: string | null
+          wompi_reference: string
+          wompi_transaction_id: string
         }
         Insert: {
           address: string
@@ -182,6 +184,8 @@ export type Database = {
           total?: number
           updated_at?: string
           user_id?: string | null
+          wompi_reference?: string
+          wompi_transaction_id?: string
         }
         Update: {
           address?: string
@@ -200,6 +204,8 @@ export type Database = {
           total?: number
           updated_at?: string
           user_id?: string | null
+          wompi_reference?: string
+          wompi_transaction_id?: string
         }
         Relationships: []
       }
