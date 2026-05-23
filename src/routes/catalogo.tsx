@@ -36,7 +36,11 @@ export const Route = createFileRoute("/catalogo")({
     meta: [
       { title: "Catálogo — Rubí" },
       { name: "description", content: "Explora la colección completa de relojería y joyería Rubí." },
+      { property: "og:title", content: "Catálogo — Rubí" },
+      { property: "og:description", content: "Explora la colección completa de relojería y joyería Rubí." },
+      { property: "og:url", content: "/catalogo" },
     ],
+    links: [{ rel: "canonical", href: "/catalogo" }],
   }),
   loader: async ({ context }) => {
     await Promise.all([
