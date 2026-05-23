@@ -72,7 +72,7 @@ function CheckoutPage() {
         },
       });
       clear();
-      const redirectUrl = `${window.location.origin}${u.user ? "/cuenta" : "/"}`;
+      const redirectUrl = `${window.location.origin}/checkout/confirmacion?ref=${encodeURIComponent(res.reference)}`;
       const params = new URLSearchParams({
         "public-key": res.publicKey,
         currency: res.currency,
