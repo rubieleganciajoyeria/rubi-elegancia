@@ -16,6 +16,7 @@ import { CartDrawer } from "@/components/CartDrawer";
 import { WishlistProvider } from "@/context/WishlistContext";
 import { AnnouncementBar } from "@/components/AnnouncementBar";
 import { WhatsAppFAB } from "@/components/WhatsAppFAB";
+import { Toaster } from "@/components/ui/sonner";
 
 function NotFoundComponent() {
   return (
@@ -139,6 +140,7 @@ function RootComponent() {
             <Footer />
             <CartDrawer />
             <WhatsAppFAB />
+            <Toaster position="top-right" richColors closeButton />
           </div>
         </CartProvider>
       </WishlistProvider>
