@@ -1,7 +1,9 @@
 import { Link } from "@tanstack/react-router";
 import { Search, ShoppingBag, User } from "lucide-react";
+import { useCart } from "@/context/CartContext";
 
 export function Header() {
+  const { count, setOpen } = useCart();
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border/60 bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6 md:h-20 md:px-10">
@@ -30,11 +32,17 @@ export function Header() {
           <button aria-label="Cuenta" className="hidden hover:text-wine md:block">
             <User className="h-[18px] w-[18px]" strokeWidth={1.4} />
           </button>
-          <button aria-label="Carrito" className="relative hover:text-wine">
+          <button
+            aria-label="Carrito"
+            onClick={() => setOpen(true)}
+            className="relative hover:text-wine"
+          >
             <ShoppingBag className="h-[19px] w-[19px]" strokeWidth={1.4} />
-            <span className="absolute -right-2 -top-2 flex h-4 w-4 items-center justify-center rounded-full bg-wine text-[10px] font-medium text-primary-foreground">
-              0
-            </span>
+            {count > 0 && (
+              <span className="absolute -right-2 -top-2 flex h-4 w-4 items-center justify-center rounded-full bg-wine text-[10px] font-medium text-primary-foreground">
+                {count}
+              </span>
+            )}
           </button>
         </div>
       </div>
