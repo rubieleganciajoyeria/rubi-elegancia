@@ -1,5 +1,6 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { Search, ShoppingBag, User, Heart } from "lucide-react";
+import { useState } from "react";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
 import rubiLogo from "@/assets/rubi-logo.png";
@@ -8,6 +9,15 @@ export function Header() {
   const { count, setOpen } = useCart();
   const { ids } = useWishlist();
   const favCount = ids.length;
+  const navigate = useNavigate();
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const submitSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const term = q.trim();
+    navigate({ to: "/catalogo", search: { q: term.length > 0 ? term : undefined } as never });
+    setSearchOpen(false);
+  };
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border/60 bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/75">
       <div className="bg-wine text-background">
@@ -33,7 +43,11 @@ export function Header() {
         </Link>
 
         <div className="flex flex-1 items-center justify-end gap-5 text-foreground/80">
-          <button aria-label="Buscar" className="hidden hover:text-wine md:block">
+          <button
+            aria-label="Buscar"
+            onClick={() => setSearchOpen((v) => !v)}
+            className="hidden hover:text-wine md:block"
+          >
             <Search className="h-[18px] w-[18px]" strokeWidth={1.4} />
           </button>
           <Link to="/favoritos" aria-label="Favoritos" className="relative hidden hover:text-wine md:block">
@@ -61,6 +75,27 @@ export function Header() {
           </button>
         </div>
       </div>
+      {searchOpen && (
+        <div className="border-t border-border/60 bg-background">
+          <form onSubmit={submitSearch} className="mx-auto flex max-w-7xl items-center gap-3 px-6 py-3 md:px-10">
+            <Search className="h-4 w-4 text-muted-foreground" strokeWidth={1.4} />
+            <input
+              autoFocus
+              type="search"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Buscar piezas, marcas, materiales…"
+              className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+            />
+            <button
+              type="submit"
+              className="text-[11px] uppercase tracking-[0.25em] text-wine hover:opacity-80"
+            >
+              Buscar
+            </button>
+          </form>
+        </div>
+      )}
     </header>
   );
 }
