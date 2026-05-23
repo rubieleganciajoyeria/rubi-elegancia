@@ -136,6 +136,7 @@ function RootComponent() {
             </main>
             <Footer />
             <CartDrawer />
+            <WhatsAppFAB />
           </div>
         </CartProvider>
       </WishlistProvider>
