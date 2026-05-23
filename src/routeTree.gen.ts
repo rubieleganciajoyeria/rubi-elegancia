@@ -17,6 +17,7 @@ import { Route as CatalogoRouteImport } from './routes/catalogo'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProductoSlugRouteImport } from './routes/producto.$slug'
+import { Route as ApiPublicWompiWebhookRouteImport } from './routes/api/public/wompi-webhook'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -58,6 +59,11 @@ const ProductoSlugRoute = ProductoSlugRouteImport.update({
   path: '/producto/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicWompiWebhookRoute = ApiPublicWompiWebhookRouteImport.update({
+  id: '/api/public/wompi-webhook',
+  path: '/api/public/wompi-webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -68,6 +74,7 @@ export interface FileRoutesByFullPath {
   '/favoritos': typeof FavoritosRoute
   '/login': typeof LoginRoute
   '/producto/$slug': typeof ProductoSlugRoute
+  '/api/public/wompi-webhook': typeof ApiPublicWompiWebhookRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -78,6 +85,7 @@ export interface FileRoutesByTo {
   '/favoritos': typeof FavoritosRoute
   '/login': typeof LoginRoute
   '/producto/$slug': typeof ProductoSlugRoute
+  '/api/public/wompi-webhook': typeof ApiPublicWompiWebhookRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -89,6 +97,7 @@ export interface FileRoutesById {
   '/favoritos': typeof FavoritosRoute
   '/login': typeof LoginRoute
   '/producto/$slug': typeof ProductoSlugRoute
+  '/api/public/wompi-webhook': typeof ApiPublicWompiWebhookRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -101,6 +110,7 @@ export interface FileRouteTypes {
     | '/favoritos'
     | '/login'
     | '/producto/$slug'
+    | '/api/public/wompi-webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -111,6 +121,7 @@ export interface FileRouteTypes {
     | '/favoritos'
     | '/login'
     | '/producto/$slug'
+    | '/api/public/wompi-webhook'
   id:
     | '__root__'
     | '/'
@@ -121,6 +132,7 @@ export interface FileRouteTypes {
     | '/favoritos'
     | '/login'
     | '/producto/$slug'
+    | '/api/public/wompi-webhook'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -132,6 +144,7 @@ export interface RootRouteChildren {
   FavoritosRoute: typeof FavoritosRoute
   LoginRoute: typeof LoginRoute
   ProductoSlugRoute: typeof ProductoSlugRoute
+  ApiPublicWompiWebhookRoute: typeof ApiPublicWompiWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -192,6 +205,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProductoSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/wompi-webhook': {
+      id: '/api/public/wompi-webhook'
+      path: '/api/public/wompi-webhook'
+      fullPath: '/api/public/wompi-webhook'
+      preLoaderRoute: typeof ApiPublicWompiWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -204,7 +224,18 @@ const rootRouteChildren: RootRouteChildren = {
   FavoritosRoute: FavoritosRoute,
   LoginRoute: LoginRoute,
   ProductoSlugRoute: ProductoSlugRoute,
+  ApiPublicWompiWebhookRoute: ApiPublicWompiWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
