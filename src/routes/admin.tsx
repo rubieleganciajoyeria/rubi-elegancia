@@ -1684,9 +1684,9 @@ function DashboardAdmin() {
         <div className="border border-border/60 p-5">
           <h3 className="mb-4 text-sm uppercase tracking-[0.18em] text-muted-foreground">Pedidos por estado</h3>
           <ul className="space-y-2 text-sm">
-            {["pending", "confirmed", "paid", "shipped", "delivered", "cancelled"].map((s) => (
+            {(["pending", "confirmed", "paid", "shipped", "delivered", "cancelled"] as const).map((s) => (
               <li key={s} className="flex items-center justify-between">
-                <span className="capitalize text-muted-foreground">{s}</span>
+                <span className="text-muted-foreground">{STATUS_LABEL[s]}</span>
                 <span className="font-medium">{ordersByStatus[s] ?? 0}</span>
               </li>
             ))}
