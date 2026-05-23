@@ -15,6 +15,24 @@ export const listSiteContent = createServerFn({ method: "GET" }).handler(
   },
 );
 
+export const getGlobalSettings = createServerFn({ method: "GET" }).handler(
+  async () => {
+    const { data, error } = await supabaseAdmin
+      .from("site_content")
+      .select("data")
+      .eq("key", "global_settings")
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return (data?.data ?? {}) as {
+      whatsapp?: string;
+      whatsapp_message?: string;
+      announcement?: string;
+      global_discount_percent?: number;
+      global_discount_active?: boolean;
+    };
+  },
+);
+
 async function assertAdmin(supabase: any, userId: string) {
   const { data, error } = await supabase
     .from("user_roles")
