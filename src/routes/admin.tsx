@@ -419,3 +419,210 @@ function FieldNumber({
     </div>
   );
 }
+
+type BannerRow = Awaited<ReturnType<typeof adminListBanners>>[number];
+
+function BannersAdmin() {
+  const list = useServerFn(adminListBanners);
+  const save = useServerFn(upsertBanner);
+  const del = useServerFn(deleteBanner);
+  const qc = useQueryClient();
+
+  const q = useQuery({ queryKey: ["admin", "banners"], queryFn: () => list() });
+  const [editing, setEditing] = useState<Partial<BannerRow> | null>(null);
+
+  const saveM = useMutation({
+    mutationFn: (data: BannerForm) => save({ data }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "banners"] });
+      qc.invalidateQueries({ queryKey: ["banners", "active"] });
+      setEditing(null);
+    },
+  });
+  const deleteM = useMutation({
+    mutationFn: (id: string) => del({ data: { id } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "banners"] });
+      qc.invalidateQueries({ queryKey: ["banners", "active"] });
+    },
+  });
+
+  return (
+    <section>
+      <div className="mb-6 flex items-end justify-between gap-4">
+        <h2 className="font-serif text-2xl">Banners del home</h2>
+        <button
+          onClick={() => setEditing({})}
+          className="inline-flex items-center gap-2 bg-wine px-5 py-3 text-[11px] uppercase tracking-[0.25em] text-primary-foreground hover:opacity-90"
+        >
+          <Plus className="h-4 w-4" /> Nuevo banner
+        </button>
+      </div>
+
+      {q.isLoading ? (
+        <p className="text-sm text-muted-foreground">Cargando banners…</p>
+      ) : (q.data ?? []).length === 0 ? (
+        <p className="text-sm text-muted-foreground">No hay banners. Crea el primero.</p>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2">
+          {(q.data ?? []).map((b) => (
+            <div key={b.id} className="flex gap-4 border border-border/60 p-3">
+              <img src={b.image} alt="" className="h-24 w-40 flex-none object-cover" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-serif text-base">{b.title || "(sin título)"}</p>
+                <p className="truncate text-xs text-muted-foreground">{b.eyebrow}</p>
+                <p className="mt-1 text-[11px] uppercase tracking-wider text-muted-foreground">
+                  Orden: {b.sort_order} · {b.is_active ? "Activo" : "Oculto"}
+                </p>
+              </div>
+              <div className="flex flex-col gap-1">
+                <button onClick={() => setEditing(b)} aria-label="Editar" className="p-2 hover:text-wine">
+                  <Pencil className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => {
+                    if (confirm("¿Eliminar banner?")) deleteM.mutate(b.id);
+                  }}
+                  aria-label="Eliminar"
+                  className="p-2 hover:text-wine"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {editing && (
+        <BannerEditor
+          initial={editing}
+          onCancel={() => setEditing(null)}
+          saving={saveM.isPending}
+          error={saveM.error instanceof Error ? saveM.error.message : null}
+          onSubmit={(v) => saveM.mutate(v)}
+        />
+      )}
+    </section>
+  );
+}
+
+type BannerForm = {
+  id?: string;
+  image: string;
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  cta_label: string;
+  cta_url: string;
+  align: "left" | "center" | "right";
+  is_active: boolean;
+  sort_order: number;
+};
+
+function BannerEditor({
+  initial,
+  onCancel,
+  onSubmit,
+  saving,
+  error,
+}: {
+  initial: Partial<BannerRow>;
+  onCancel: () => void;
+  onSubmit: (v: BannerForm) => void;
+  saving: boolean;
+  error: string | null;
+}) {
+  const [v, setV] = useState<BannerForm>({
+    id: initial.id,
+    image: initial.image ?? "",
+    eyebrow: initial.eyebrow ?? "",
+    title: initial.title ?? "",
+    subtitle: initial.subtitle ?? "",
+    cta_label: initial.cta_label ?? "",
+    cta_url: initial.cta_url ?? "",
+    align: (initial.align as "left" | "center" | "right") ?? "left",
+    is_active: initial.is_active ?? true,
+    sort_order: initial.sort_order ?? 0,
+  });
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, []);
+  const set = <K extends keyof BannerForm>(k: K, val: BannerForm[K]) =>
+    setV({ ...v, [k]: val });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4">
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto bg-background p-8 shadow-2xl">
+        <div className="flex items-start justify-between">
+          <h2 className="font-serif text-2xl">{v.id ? "Editar banner" : "Nuevo banner"}</h2>
+          <button onClick={onCancel} aria-label="Cerrar" className="p-2 hover:text-wine">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            onSubmit(v);
+          }}
+          className="mt-6 grid gap-4 sm:grid-cols-2"
+        >
+          <Field
+            label="Imagen (URL o /products/…)"
+            value={v.image}
+            onChange={(x) => set("image", x)}
+            required
+            className="sm:col-span-2"
+          />
+          <Field label="Eyebrow (texto pequeño superior)" value={v.eyebrow} onChange={(x) => set("eyebrow", x)} className="sm:col-span-2" />
+          <Field label="Título" value={v.title} onChange={(x) => set("title", x)} className="sm:col-span-2" />
+          <div className="sm:col-span-2">
+            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Subtítulo</label>
+            <textarea
+              value={v.subtitle}
+              onChange={(e) => set("subtitle", e.target.value)}
+              rows={3}
+              className="mt-2 w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm focus:border-wine"
+            />
+          </div>
+          <Field label="Texto del botón" value={v.cta_label} onChange={(x) => set("cta_label", x)} />
+          <Field label="URL del botón" value={v.cta_url} onChange={(x) => set("cta_url", x)} />
+          <div>
+            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Alineación</label>
+            <select
+              value={v.align}
+              onChange={(e) => set("align", e.target.value as "left" | "center" | "right")}
+              className="mt-2 w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm focus:border-wine"
+            >
+              <option value="left">Izquierda</option>
+              <option value="center">Centro</option>
+              <option value="right">Derecha</option>
+            </select>
+          </div>
+          <FieldNumber label="Orden" value={v.sort_order} onChange={(n) => set("sort_order", n)} />
+          <label className="flex items-center gap-2 self-end text-sm sm:col-span-2">
+            <input type="checkbox" checked={v.is_active} onChange={(e) => set("is_active", e.target.checked)} />
+            Banner activo (visible en el home)
+          </label>
+
+          {error && <p className="sm:col-span-2 text-sm text-wine">{error}</p>}
+          <div className="sm:col-span-2 mt-2 flex justify-end gap-3">
+            <button type="button" onClick={onCancel} className="px-5 py-3 text-[11px] uppercase tracking-[0.25em] text-muted-foreground hover:text-wine">
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="bg-wine px-6 py-3 text-[11px] uppercase tracking-[0.25em] text-primary-foreground hover:opacity-90 disabled:opacity-50"
+            >
+              {saving ? "Guardando…" : "Guardar"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
