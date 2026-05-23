@@ -15,6 +15,11 @@ import {
   upsertBanner,
   deleteBanner,
 } from "@/lib/banners.functions";
+import {
+  adminListCategories,
+  upsertCategory,
+  deleteCategory,
+} from "@/lib/categories.functions";
 import { formatCOP } from "@/data/products";
 
 export const Route = createFileRoute("/admin")({
@@ -33,12 +38,18 @@ function AdminPage() {
   const role = useServerFn(getMyRole);
   const save = useServerFn(upsertProduct);
   const del = useServerFn(deleteProduct);
+  const listCats = useServerFn(adminListCategories);
   const qc = useQueryClient();
 
   const roleQ = useQuery({ queryKey: ["my-role"], queryFn: () => role() });
   const productsQ = useQuery({
     queryKey: ["admin", "products"],
     queryFn: () => list(),
+    enabled: !!roleQ.data?.isAdmin,
+  });
+  const categoriesQ = useQuery({
+    queryKey: ["admin", "categories"],
+    queryFn: () => listCats(),
     enabled: !!roleQ.data?.isAdmin,
   });
 
@@ -117,6 +128,10 @@ function AdminPage() {
       <div className="gold-divider my-8" />
 
       <BannersAdmin />
+
+      <div className="gold-divider my-12" />
+
+      <CategoriesAdmin />
 
       <div className="gold-divider my-12" />
 
@@ -204,6 +219,7 @@ function AdminPage() {
       {editing && (
         <ProductEditor
           initial={editing}
+          categories={categoriesQ.data ?? []}
           onCancel={() => setEditing(null)}
           saving={saveM.isPending}
           error={saveM.error instanceof Error ? saveM.error.message : null}
