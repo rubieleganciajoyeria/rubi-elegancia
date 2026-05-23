@@ -72,7 +72,7 @@ function CheckoutPage() {
         },
       });
       clear();
-      navigate({ to: "/" });
+      navigate({ to: u.user ? "/cuenta" : "/" });
     } catch (err: any) {
       setError(err?.message ?? "No pudimos registrar tu pedido. Intenta nuevamente.");
       setSubmitting(false);
