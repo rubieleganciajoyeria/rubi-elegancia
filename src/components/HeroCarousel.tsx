@@ -39,7 +39,7 @@ export function HeroCarousel({ banners }: { banners: Banner[] }) {
       <div ref={emblaRef} className="overflow-hidden">
         <div className="flex">
           {banners.map((b) => (
-            <div key={b.id} className="relative h-[88vh] min-h-[640px] w-full flex-[0_0_100%]">
+            <div key={b.id} className="relative h-[75vh] min-h-[540px] w-full flex-[0_0_100%]">
               <img
                 src={b.image}
                 alt={b.title || b.eyebrow || "Banner"}
