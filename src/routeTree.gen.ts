@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as FavoritosRouteImport } from './routes/favoritos'
 import { Route as CuentaRouteImport } from './routes/cuenta'
@@ -20,6 +21,11 @@ import { Route as ProductoSlugRouteImport } from './routes/producto.$slug'
 import { Route as CheckoutConfirmacionRouteImport } from './routes/checkout.confirmacion'
 import { Route as ApiPublicWompiWebhookRouteImport } from './routes/api/public/wompi-webhook'
 
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -79,6 +85,7 @@ export interface FileRoutesByFullPath {
   '/cuenta': typeof CuentaRoute
   '/favoritos': typeof FavoritosRoute
   '/login': typeof LoginRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/checkout/confirmacion': typeof CheckoutConfirmacionRoute
   '/producto/$slug': typeof ProductoSlugRoute
   '/api/public/wompi-webhook': typeof ApiPublicWompiWebhookRoute
@@ -91,6 +98,7 @@ export interface FileRoutesByTo {
   '/cuenta': typeof CuentaRoute
   '/favoritos': typeof FavoritosRoute
   '/login': typeof LoginRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/checkout/confirmacion': typeof CheckoutConfirmacionRoute
   '/producto/$slug': typeof ProductoSlugRoute
   '/api/public/wompi-webhook': typeof ApiPublicWompiWebhookRoute
@@ -104,6 +112,7 @@ export interface FileRoutesById {
   '/cuenta': typeof CuentaRoute
   '/favoritos': typeof FavoritosRoute
   '/login': typeof LoginRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/checkout/confirmacion': typeof CheckoutConfirmacionRoute
   '/producto/$slug': typeof ProductoSlugRoute
   '/api/public/wompi-webhook': typeof ApiPublicWompiWebhookRoute
@@ -118,6 +127,7 @@ export interface FileRouteTypes {
     | '/cuenta'
     | '/favoritos'
     | '/login'
+    | '/sitemap.xml'
     | '/checkout/confirmacion'
     | '/producto/$slug'
     | '/api/public/wompi-webhook'
@@ -130,6 +140,7 @@ export interface FileRouteTypes {
     | '/cuenta'
     | '/favoritos'
     | '/login'
+    | '/sitemap.xml'
     | '/checkout/confirmacion'
     | '/producto/$slug'
     | '/api/public/wompi-webhook'
@@ -142,6 +153,7 @@ export interface FileRouteTypes {
     | '/cuenta'
     | '/favoritos'
     | '/login'
+    | '/sitemap.xml'
     | '/checkout/confirmacion'
     | '/producto/$slug'
     | '/api/public/wompi-webhook'
@@ -155,12 +167,20 @@ export interface RootRouteChildren {
   CuentaRoute: typeof CuentaRoute
   FavoritosRoute: typeof FavoritosRoute
   LoginRoute: typeof LoginRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   ProductoSlugRoute: typeof ProductoSlugRoute
   ApiPublicWompiWebhookRoute: typeof ApiPublicWompiWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -254,6 +274,7 @@ const rootRouteChildren: RootRouteChildren = {
   CuentaRoute: CuentaRoute,
   FavoritosRoute: FavoritosRoute,
   LoginRoute: LoginRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
   ProductoSlugRoute: ProductoSlugRoute,
   ApiPublicWompiWebhookRoute: ApiPublicWompiWebhookRoute,
 }
