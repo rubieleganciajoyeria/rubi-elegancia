@@ -226,6 +226,56 @@ export type Database = {
         }
         Relationships: []
       }
+      promotions: {
+        Row: {
+          created_at: string
+          ends_at: string | null
+          id: string
+          is_active: boolean
+          kind: Database["public"]["Enums"]["promotion_kind"]
+          name: string
+          priority: number
+          product_id: string | null
+          starts_at: string
+          updated_at: string
+          value: number
+        }
+        Insert: {
+          created_at?: string
+          ends_at?: string | null
+          id?: string
+          is_active?: boolean
+          kind?: Database["public"]["Enums"]["promotion_kind"]
+          name: string
+          priority?: number
+          product_id?: string | null
+          starts_at?: string
+          updated_at?: string
+          value: number
+        }
+        Update: {
+          created_at?: string
+          ends_at?: string | null
+          id?: string
+          is_active?: boolean
+          kind?: Database["public"]["Enums"]["promotion_kind"]
+          name?: string
+          priority?: number
+          product_id?: string | null
+          starts_at?: string
+          updated_at?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promotions_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -262,6 +312,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      promotion_kind: "percent" | "amount"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -390,6 +441,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      promotion_kind: ["percent", "amount"],
     },
   },
 } as const
