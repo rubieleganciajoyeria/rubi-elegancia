@@ -92,6 +92,48 @@ export type Database = {
         }
         Relationships: []
       }
+      coupons: {
+        Row: {
+          code: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          kind: string
+          max_uses: number | null
+          min_subtotal: number
+          updated_at: string
+          used_count: number
+          value: number
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          kind?: string
+          max_uses?: number | null
+          min_subtotal?: number
+          updated_at?: string
+          used_count?: number
+          value: number
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          kind?: string
+          max_uses?: number | null
+          min_subtotal?: number
+          updated_at?: string
+          used_count?: number
+          value?: number
+        }
+        Relationships: []
+      }
       order_items: {
         Row: {
           created_at: string
@@ -150,10 +192,12 @@ export type Database = {
         Row: {
           address: string
           city: string
+          coupon_code: string
           created_at: string
           customer_email: string
           customer_name: string
           customer_phone: string
+          discount: number
           id: string
           notes: string
           payment_method: string
@@ -171,10 +215,12 @@ export type Database = {
         Insert: {
           address: string
           city: string
+          coupon_code?: string
           created_at?: string
           customer_email: string
           customer_name: string
           customer_phone: string
+          discount?: number
           id?: string
           notes?: string
           payment_method?: string
@@ -192,10 +238,12 @@ export type Database = {
         Update: {
           address?: string
           city?: string
+          coupon_code?: string
           created_at?: string
           customer_email?: string
           customer_name?: string
           customer_phone?: string
+          discount?: number
           id?: string
           notes?: string
           payment_method?: string
@@ -446,6 +494,17 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      validate_coupon: {
+        Args: { _code: string; _subtotal: number }
+        Returns: {
+          code: string
+          discount: number
+          kind: string
+          reason: string
+          valid: boolean
+          value: number
+        }[]
       }
     }
     Enums: {
