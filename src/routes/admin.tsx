@@ -31,6 +31,10 @@ import {
   updateOrderStatus,
   deleteOrder,
 } from "@/lib/orders.functions";
+import {
+  listSiteContent,
+  upsertSiteContent,
+} from "@/lib/site-content.functions";
 import { formatCOP } from "@/data/products";
 
 export const Route = createFileRoute("/admin")({
@@ -167,6 +171,10 @@ function AdminPage() {
       <div className="gold-divider my-12" />
 
       <OrdersAdmin />
+
+      <div className="gold-divider my-12" />
+
+      <HomeSectionsAdmin />
 
       <div className="gold-divider my-12" />
 
@@ -1412,5 +1420,77 @@ function PromotionEditor({
         </form>
       </div>
     </div>
+  );
+}
+
+function HomeSectionsAdmin() {
+  const list = useServerFn(listSiteContent);
+  const save = useServerFn(upsertSiteContent);
+  const qc = useQueryClient();
+  const q = useQuery({ queryKey: ["admin", "site-content"], queryFn: () => list() });
+  const [edit, setEdit] = useState<Record<string, string>>({});
+
+  const saveM = useMutation({
+    mutationFn: (v: { key: string; data: any }) => save({ data: v }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "site-content"] });
+      qc.invalidateQueries({ queryKey: ["site-content"] });
+    },
+  });
+
+  if (q.isLoading) return <p className="text-sm text-muted-foreground">Cargando secciones…</p>;
+  const data = q.data ?? {};
+  const keys = ["home_pillars", "home_categories_section", "home_emotional", "home_featured", "home_benefits"];
+  const labels: Record<string, string> = {
+    home_pillars: "Pilares (4 ítems con icon: watch|gem|shield|bag|sparkles)",
+    home_categories_section: "Sección Categorías (eyebrow, title)",
+    home_emotional: "Banner Emocional (eyebrow, title, cta_label, cta_url, image)",
+    home_featured: "Sección Destacados (eyebrow, title, cta_label, cta_url)",
+    home_benefits: "Beneficios (3 ítems con icon: shield|sparkles|gem)",
+  };
+
+  return (
+    <section>
+      <h2 className="mb-6 font-serif text-2xl">Secciones Home</h2>
+      <div className="space-y-6">
+        {keys.map((k) => {
+          const current = JSON.stringify(data[k] ?? {}, null, 2);
+          const value = edit[k] ?? current;
+          let isValid = true;
+          try { JSON.parse(value); } catch { isValid = false; }
+          return (
+            <div key={k} className="border border-border/60 p-4">
+              <div className="mb-2 flex items-center justify-between">
+                <label className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">{labels[k] || k}</label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEdit((e) => ({ ...e, [k]: current }))}
+                    className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground hover:text-wine"
+                  >
+                    Restaurar
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!isValid || saveM.isPending}
+                    onClick={() => saveM.mutate({ key: k, data: JSON.parse(value) })}
+                    className="bg-wine px-4 py-2 text-[11px] uppercase tracking-[0.25em] text-primary-foreground hover:opacity-90 disabled:opacity-40"
+                  >
+                    Guardar
+                  </button>
+                </div>
+              </div>
+              <textarea
+                value={value}
+                onChange={(e) => setEdit((s) => ({ ...s, [k]: e.target.value }))}
+                rows={10}
+                className={`w-full border bg-transparent p-3 font-mono text-xs outline-none ${isValid ? "border-foreground/20 focus:border-wine" : "border-destructive"}`}
+              />
+              {!isValid && <p className="mt-1 text-xs text-destructive">JSON inválido</p>}
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
