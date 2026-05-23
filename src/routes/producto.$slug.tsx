@@ -1,4 +1,4 @@
-import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { ShieldCheck, Truck, RefreshCcw, ShoppingBag, Heart } from "lucide-react";
@@ -91,6 +91,7 @@ function ProductDetail() {
   const [active, setActive] = useState(0);
   const [qty, setQtyLocal] = useState(1);
   const { add, setOpen } = useCart();
+  const navigate = useNavigate();
   const { has, toggle } = useWishlist();
   const fav = has(product.id);
   const hasDiscount = !!product.discountPrice;
@@ -198,7 +199,7 @@ function ProductDetail() {
             onClick={() => {
               add(product, qty);
               setOpen(false);
-              window.location.href = "/checkout";
+              navigate({ to: "/checkout" });
             }}
             disabled={soldOut}
             className="mt-3 inline-flex w-full items-center justify-center gap-2 bg-wine px-8 py-4 text-[11px] uppercase tracking-[0.25em] text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
