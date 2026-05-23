@@ -69,6 +69,7 @@ export const Route = createFileRoute("/api/public/wompi-webhook")({
           .update({
             status: mapStatus(status),
             wompi_transaction_id: txId,
+            wompi_payload: payload as any,
           })
           .eq("wompi_reference", reference);
         if (error) console.error("Wompi webhook update error:", error.message);

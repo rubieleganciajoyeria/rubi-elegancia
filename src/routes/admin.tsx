@@ -576,6 +576,8 @@ function OrdersAdmin() {
   const del = useServerFn(deleteOrder);
   const qc = useQueryClient();
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [refFilter, setRefFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
 
   const ordersQ = useQuery({ queryKey: ["admin", "orders"], queryFn: () => list() });
 
@@ -589,13 +591,51 @@ function OrdersAdmin() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "orders"] }),
   });
 
+  const allOrders = (ordersQ.data ?? []) as any[];
+  const filtered = allOrders.filter((o) => {
+    const ref = (o.wompi_reference || "").toLowerCase();
+    const tx = (o.wompi_transaction_id || "").toLowerCase();
+    const q = refFilter.trim().toLowerCase();
+    const refOk = !q || ref.includes(q) || tx.includes(q);
+    const statusOk = statusFilter === "all" || o.status === statusFilter;
+    return refOk && statusOk;
+  });
+
   return (
     <section>
       <h2 className="mb-6 font-serif text-2xl">Pedidos</h2>
+      <div className="mb-4 flex flex-wrap gap-3">
+        <input
+          value={refFilter}
+          onChange={(e) => setRefFilter(e.target.value)}
+          placeholder="Buscar referencia o tx Wompi…"
+          className="flex-1 min-w-[240px] border border-foreground/20 bg-transparent px-3 py-2 text-sm outline-none focus:border-wine"
+        />
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="border border-foreground/20 bg-transparent px-3 py-2 text-sm"
+        >
+          <option value="all">Todos los estados</option>
+          {ORDER_STATUSES.map((s) => (
+            <option key={s} value={s}>{STATUS_LABEL[s]}</option>
+          ))}
+        </select>
+        {(refFilter || statusFilter !== "all") && (
+          <button
+            onClick={() => { setRefFilter(""); setStatusFilter("all"); }}
+            className="border border-foreground/20 px-3 py-2 text-[11px] uppercase tracking-[0.2em] text-muted-foreground hover:text-wine"
+          >
+            Limpiar
+          </button>
+        )}
+      </div>
       {ordersQ.isLoading ? (
         <p className="text-sm text-muted-foreground">Cargando pedidos…</p>
-      ) : (ordersQ.data ?? []).length === 0 ? (
+      ) : allOrders.length === 0 ? (
         <p className="text-sm text-muted-foreground">Aún no hay pedidos.</p>
+      ) : filtered.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Sin pedidos para los filtros aplicados.</p>
       ) : (
         <div className="overflow-x-auto border border-border/60">
           <table className="w-full text-sm">
@@ -603,13 +643,14 @@ function OrdersAdmin() {
               <tr>
                 <th className="p-3">Fecha</th>
                 <th className="p-3">Cliente</th>
+                <th className="p-3">Wompi</th>
                 <th className="p-3">Total</th>
                 <th className="p-3">Estado</th>
                 <th className="p-3 text-right">Acciones</th>
               </tr>
             </thead>
             <tbody>
-              {(ordersQ.data ?? []).map((o: any) => (
+              {filtered.map((o: any) => (
                 <Fragment key={o.id}>
                   <tr className="border-t border-border/60">
                     <td className="p-3 text-xs text-muted-foreground">
@@ -619,6 +660,18 @@ function OrdersAdmin() {
                       <div className="font-medium">{o.customer_name}</div>
                       <div className="text-xs text-muted-foreground">{o.customer_email} · {o.customer_phone}</div>
                       <div className="text-xs text-muted-foreground">{o.city} — {o.address}</div>
+                    </td>
+                    <td className="p-3 text-xs">
+                      {o.wompi_reference ? (
+                        <>
+                          <div className="font-mono">{o.wompi_reference}</div>
+                          {o.wompi_transaction_id && (
+                            <div className="font-mono text-muted-foreground">tx: {o.wompi_transaction_id}</div>
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
                     </td>
                     <td className="p-3">{formatCOP(o.total)}</td>
                     <td className="p-3">
@@ -652,7 +705,7 @@ function OrdersAdmin() {
                   </tr>
                   {expanded === o.id && (
                     <tr className="border-t border-border/60 bg-secondary/20">
-                      <td colSpan={5} className="p-4">
+                      <td colSpan={6} className="p-4">
                         <div className="grid gap-3">
                           {(o.order_items ?? []).map((it: any) => (
                             <div key={it.id} className="flex items-center gap-3 text-sm">
@@ -668,6 +721,20 @@ function OrdersAdmin() {
                           ))}
                           <div className="text-xs text-muted-foreground">
                             Subtotal: {formatCOP(o.subtotal)} · Envío: {formatCOP(o.shipping)} · Notas: {o.notes || "—"}
+                          </div>
+                          <div className="mt-2 border-t border-border/60 pt-3">
+                            <div className="mb-2 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+                              Webhook Wompi
+                            </div>
+                            {o.wompi_payload && Object.keys(o.wompi_payload).length > 0 ? (
+                              <pre className="max-h-80 overflow-auto rounded bg-background/60 p-3 text-[11px] leading-relaxed">
+{JSON.stringify(o.wompi_payload, null, 2)}
+                              </pre>
+                            ) : (
+                              <p className="text-xs text-muted-foreground">
+                                Aún no se ha recibido webhook para este pedido.
+                              </p>
+                            )}
                           </div>
                         </div>
                       </td>
