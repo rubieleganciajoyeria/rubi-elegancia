@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      banners: {
+        Row: {
+          align: string
+          created_at: string
+          cta_label: string
+          cta_url: string
+          eyebrow: string
+          id: string
+          image: string
+          is_active: boolean
+          sort_order: number
+          subtitle: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          align?: string
+          created_at?: string
+          cta_label?: string
+          cta_url?: string
+          eyebrow?: string
+          id?: string
+          image: string
+          is_active?: boolean
+          sort_order?: number
+          subtitle?: string
+          title?: string
+          updated_at?: string
+        }
+        Update: {
+          align?: string
+          created_at?: string
+          cta_label?: string
+          cta_url?: string
+          eyebrow?: string
+          id?: string
+          image?: string
+          is_active?: boolean
+          sort_order?: number
+          subtitle?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           brand: string
