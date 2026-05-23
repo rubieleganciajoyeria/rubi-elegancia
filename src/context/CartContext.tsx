@@ -8,6 +8,7 @@ export type CartItem = {
   image: string;
   price: number; // unit price (already with discount applied)
   qty: number;
+  stock: number | null;
 };
 
 type CartState = {
@@ -47,14 +48,28 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const add = (p: Product, qty = 1) => {
     const unit = p.discountPrice ?? p.price;
+    const max = p.stock;
+    if (max !== null && max <= 0) return; // agotado
     setItems((prev) => {
       const found = prev.find((i) => i.id === p.id);
       if (found) {
-        return prev.map((i) => (i.id === p.id ? { ...i, qty: i.qty + qty } : i));
+        return prev.map((i) =>
+          i.id === p.id
+            ? { ...i, qty: max === null ? i.qty + qty : Math.min(i.qty + qty, max), stock: max }
+            : i,
+        );
       }
       return [
         ...prev,
-        { id: p.id, slug: p.slug, name: p.name, image: p.image, price: unit, qty },
+        {
+          id: p.id,
+          slug: p.slug,
+          name: p.name,
+          image: p.image,
+          price: unit,
+          qty: max === null ? qty : Math.min(qty, max),
+          stock: max,
+        },
       ];
     });
     setOpen(true);
@@ -64,7 +79,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const setQty = (id: string, qty: number) =>
     setItems((prev) =>
       prev
-        .map((i) => (i.id === id ? { ...i, qty: Math.max(0, qty) } : i))
+        .map((i) =>
+          i.id === id
+            ? {
+                ...i,
+                qty:
+                  i.stock === null
+                    ? Math.max(0, qty)
+                    : Math.max(0, Math.min(qty, i.stock)),
+              }
+            : i,
+        )
         .filter((i) => i.qty > 0)
     );
   const clear = () => setItems([]);
