@@ -1,11 +1,18 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { ArrowRight, ShieldCheck, Sparkles, Gem } from "lucide-react";
 import heroImg from "@/assets/hero-watch.jpg";
 import catWatches from "@/assets/cat-watches.jpg";
 import catJewelry from "@/assets/cat-jewelry.jpg";
 import emotional from "@/assets/emotional-banner.jpg";
-import { products } from "@/data/products";
+import { mapProduct } from "@/data/products";
+import { listActiveProducts } from "@/lib/products.functions";
 import { ProductCard } from "@/components/ProductCard";
+
+const productsQueryOptions = queryOptions({
+  queryKey: ["products", "active"],
+  queryFn: async () => (await listActiveProducts()).map(mapProduct),
+});
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -16,10 +23,12 @@ export const Route = createFileRoute("/")({
       { property: "og:description", content: "Relojería y joyería premium en Colombia." },
     ],
   }),
+  loader: ({ context }) => context.queryClient.ensureQueryData(productsQueryOptions),
   component: Home,
 });
 
 function Home() {
+  const { data: products } = useSuspenseQuery(productsQueryOptions);
   const featured = products.slice(0, 4);
   return (
     <div>

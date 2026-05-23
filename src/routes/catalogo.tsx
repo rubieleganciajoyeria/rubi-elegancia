@@ -1,7 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { products, brands, materials } from "@/data/products";
+import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
+import { mapProduct, type Product } from "@/data/products";
+import { listActiveProducts } from "@/lib/products.functions";
 import { ProductCard } from "@/components/ProductCard";
+
+const productsQueryOptions = queryOptions({
+  queryKey: ["products", "active"],
+  queryFn: async () => (await listActiveProducts()).map(mapProduct),
+});
 
 type Search = { cat?: "relojeria" | "joyeria" };
 
@@ -15,18 +22,22 @@ export const Route = createFileRoute("/catalogo")({
       { name: "description", content: "Explora la colección completa de relojería y joyería Rubí." },
     ],
   }),
+  loader: ({ context }) => context.queryClient.ensureQueryData(productsQueryOptions),
   component: Catalogo,
 });
 
 function Catalogo() {
   const { cat } = Route.useSearch();
+  const { data: products } = useSuspenseQuery(productsQueryOptions);
+  const brands = useMemo(() => Array.from(new Set(products.map((p) => p.brand))), [products]);
+  const materials = useMemo(() => Array.from(new Set(products.map((p) => p.material))), [products]);
   const [category, setCategory] = useState<"todos" | "relojeria" | "joyeria">(cat ?? "todos");
   const [brand, setBrand] = useState<string>("todas");
   const [material, setMaterial] = useState<string>("todos");
   const [maxPrice, setMaxPrice] = useState<number>(3000000);
 
   const filtered = useMemo(
-    () =>
+    (): Product[] =>
       products.filter((p) => {
         if (category !== "todos" && p.category !== category) return false;
         if (brand !== "todas" && p.brand !== brand) return false;
@@ -34,7 +45,7 @@ function Catalogo() {
         const price = p.discountPrice ?? p.price;
         return price <= maxPrice;
       }),
-    [category, brand, material, maxPrice],
+    [products, category, brand, material, maxPrice],
   );
 
   return (
