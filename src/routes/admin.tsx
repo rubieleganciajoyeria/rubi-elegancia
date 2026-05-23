@@ -15,6 +15,11 @@ import {
   upsertBanner,
   deleteBanner,
 } from "@/lib/banners.functions";
+import {
+  adminListCategories,
+  upsertCategory,
+  deleteCategory,
+} from "@/lib/categories.functions";
 import { formatCOP } from "@/data/products";
 
 export const Route = createFileRoute("/admin")({
@@ -33,12 +38,18 @@ function AdminPage() {
   const role = useServerFn(getMyRole);
   const save = useServerFn(upsertProduct);
   const del = useServerFn(deleteProduct);
+  const listCats = useServerFn(adminListCategories);
   const qc = useQueryClient();
 
   const roleQ = useQuery({ queryKey: ["my-role"], queryFn: () => role() });
   const productsQ = useQuery({
     queryKey: ["admin", "products"],
     queryFn: () => list(),
+    enabled: !!roleQ.data?.isAdmin,
+  });
+  const categoriesQ = useQuery({
+    queryKey: ["admin", "categories"],
+    queryFn: () => listCats(),
     enabled: !!roleQ.data?.isAdmin,
   });
 
@@ -117,6 +128,10 @@ function AdminPage() {
       <div className="gold-divider my-8" />
 
       <BannersAdmin />
+
+      <div className="gold-divider my-12" />
+
+      <CategoriesAdmin />
 
       <div className="gold-divider my-12" />
 
@@ -204,6 +219,7 @@ function AdminPage() {
       {editing && (
         <ProductEditor
           initial={editing}
+          categories={categoriesQ.data ?? []}
           onCancel={() => setEditing(null)}
           saving={saveM.isPending}
           error={saveM.error instanceof Error ? saveM.error.message : null}
@@ -218,7 +234,7 @@ type FormValues = {
   id?: string;
   slug: string;
   name: string;
-  category: "relojeria" | "joyeria";
+  category: string;
   category_label: string;
   brand: string;
   material: string;
@@ -234,12 +250,14 @@ type FormValues = {
 
 function ProductEditor({
   initial,
+  categories,
   onCancel,
   onSubmit,
   saving,
   error,
 }: {
   initial: Partial<ProductRow>;
+  categories: Array<{ slug: string; name: string }>;
   onCancel: () => void;
   onSubmit: (v: FormValues) => void;
   saving: boolean;
@@ -249,8 +267,8 @@ function ProductEditor({
     id: initial.id,
     slug: initial.slug ?? "",
     name: initial.name ?? "",
-    category: (initial.category as "relojeria" | "joyeria") ?? "relojeria",
-    category_label: initial.category_label ?? "Relojería",
+    category: initial.category ?? categories[0]?.slug ?? "",
+    category_label: initial.category_label ?? categories[0]?.name ?? "",
     brand: initial.brand ?? "Rubí Atelier",
     material: initial.material ?? "",
     price: initial.price ?? 0,
@@ -298,13 +316,20 @@ function ProductEditor({
             <select
               value={v.category}
               onChange={(e) => {
-                const cat = e.target.value as "relojeria" | "joyeria";
-                setV({ ...v, category: cat, category_label: cat === "relojeria" ? "Relojería" : "Joyería" });
+                const cat = e.target.value;
+                const label = categories.find((c) => c.slug === cat)?.name ?? cat;
+                setV({ ...v, category: cat, category_label: label });
               }}
               className="mt-2 w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm focus:border-wine"
             >
-              <option value="relojeria">Relojería</option>
-              <option value="joyeria">Joyería</option>
+              {categories.length === 0 && (
+                <option value="">— Crea una categoría primero —</option>
+              )}
+              {categories.map((c) => (
+                <option key={c.slug} value={c.slug}>
+                  {c.name}
+                </option>
+              ))}
             </select>
           </div>
           <Field label="Marca" value={v.brand} onChange={(x) => set("brand", x)} required />
@@ -611,6 +636,215 @@ function BannerEditor({
           {error && <p className="sm:col-span-2 text-sm text-wine">{error}</p>}
           <div className="sm:col-span-2 mt-2 flex justify-end gap-3">
             <button type="button" onClick={onCancel} className="px-5 py-3 text-[11px] uppercase tracking-[0.25em] text-muted-foreground hover:text-wine">
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="bg-wine px-6 py-3 text-[11px] uppercase tracking-[0.25em] text-primary-foreground hover:opacity-90 disabled:opacity-50"
+            >
+              {saving ? "Guardando…" : "Guardar"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// =================== Categorías ===================
+
+type CategoryRow = Awaited<ReturnType<typeof adminListCategories>>[number];
+type CategoryForm = {
+  id?: string;
+  slug: string;
+  name: string;
+  image_url: string;
+  sort_order: number;
+  is_active: boolean;
+};
+
+function CategoriesAdmin() {
+  const list = useServerFn(adminListCategories);
+  const save = useServerFn(upsertCategory);
+  const del = useServerFn(deleteCategory);
+  const qc = useQueryClient();
+
+  const q = useQuery({ queryKey: ["admin", "categories"], queryFn: () => list() });
+  const [editing, setEditing] = useState<Partial<CategoryRow> | null>(null);
+
+  const saveM = useMutation({
+    mutationFn: (data: CategoryForm) => save({ data }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "categories"] });
+      qc.invalidateQueries({ queryKey: ["categories", "active"] });
+      setEditing(null);
+    },
+  });
+  const deleteM = useMutation({
+    mutationFn: (id: string) => del({ data: { id } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "categories"] });
+      qc.invalidateQueries({ queryKey: ["categories", "active"] });
+    },
+  });
+
+  return (
+    <section>
+      <div className="mb-6 flex items-end justify-between gap-4">
+        <h2 className="font-serif text-2xl">Categorías</h2>
+        <button
+          onClick={() => setEditing({})}
+          className="inline-flex items-center gap-2 bg-wine px-5 py-3 text-[11px] uppercase tracking-[0.25em] text-primary-foreground hover:opacity-90"
+        >
+          <Plus className="h-4 w-4" /> Nueva categoría
+        </button>
+      </div>
+
+      {q.isLoading ? (
+        <p className="text-sm text-muted-foreground">Cargando…</p>
+      ) : (q.data ?? []).length === 0 ? (
+        <p className="text-sm text-muted-foreground">No hay categorías.</p>
+      ) : (
+        <div className="overflow-x-auto border border-border/60">
+          <table className="w-full text-sm">
+            <thead className="bg-secondary/50 text-left text-[11px] uppercase tracking-[0.15em] text-muted-foreground">
+              <tr>
+                <th className="p-3">Nombre</th>
+                <th className="p-3">Slug</th>
+                <th className="p-3">Orden</th>
+                <th className="p-3">Estado</th>
+                <th className="p-3 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(q.data ?? []).map((c) => (
+                <tr key={c.id} className="border-t border-border/60">
+                  <td className="p-3 font-serif">{c.name}</td>
+                  <td className="p-3 text-xs text-muted-foreground">{c.slug}</td>
+                  <td className="p-3 text-xs text-muted-foreground">{c.sort_order}</td>
+                  <td className="p-3">
+                    <span
+                      className={`px-2 py-1 text-[10px] uppercase tracking-wider ${
+                        c.is_active ? "bg-secondary text-foreground" : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {c.is_active ? "Activa" : "Oculta"}
+                    </span>
+                  </td>
+                  <td className="p-3 text-right">
+                    <button onClick={() => setEditing(c)} aria-label="Editar" className="mr-2 p-2 hover:text-wine">
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (confirm(`¿Eliminar la categoría "${c.name}"?`)) deleteM.mutate(c.id);
+                      }}
+                      aria-label="Eliminar"
+                      className="p-2 hover:text-wine"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {deleteM.error instanceof Error && (
+        <p className="mt-3 text-sm text-wine">{deleteM.error.message}</p>
+      )}
+
+      {editing && (
+        <CategoryEditor
+          initial={editing}
+          onCancel={() => setEditing(null)}
+          saving={saveM.isPending}
+          error={saveM.error instanceof Error ? saveM.error.message : null}
+          onSubmit={(v) => saveM.mutate(v)}
+        />
+      )}
+    </section>
+  );
+}
+
+function CategoryEditor({
+  initial,
+  onCancel,
+  onSubmit,
+  saving,
+  error,
+}: {
+  initial: Partial<CategoryRow>;
+  onCancel: () => void;
+  onSubmit: (v: CategoryForm) => void;
+  saving: boolean;
+  error: string | null;
+}) {
+  const [v, setV] = useState<CategoryForm>({
+    id: initial.id,
+    slug: initial.slug ?? "",
+    name: initial.name ?? "",
+    image_url: initial.image_url ?? "",
+    sort_order: initial.sort_order ?? 0,
+    is_active: initial.is_active ?? true,
+  });
+
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, []);
+
+  const set = <K extends keyof CategoryForm>(k: K, val: CategoryForm[K]) =>
+    setV({ ...v, [k]: val });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4">
+      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto bg-background p-8 shadow-2xl">
+        <div className="flex items-start justify-between">
+          <h2 className="font-serif text-2xl">{v.id ? "Editar categoría" : "Nueva categoría"}</h2>
+          <button onClick={onCancel} aria-label="Cerrar" className="p-2 hover:text-wine">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            onSubmit(v);
+          }}
+          className="mt-6 grid gap-4"
+        >
+          <Field label="Nombre" value={v.name} onChange={(x) => set("name", x)} required />
+          <Field
+            label="Slug (URL — solo minúsculas, números y guiones)"
+            value={v.slug}
+            onChange={(x) => set("slug", x.toLowerCase())}
+            required
+          />
+          <Field label="Imagen (URL, opcional)" value={v.image_url} onChange={(x) => set("image_url", x)} />
+          <FieldNumber label="Orden" value={v.sort_order} onChange={(n) => set("sort_order", n)} />
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={v.is_active}
+              onChange={(e) => set("is_active", e.target.checked)}
+            />
+            Categoría activa (visible en la tienda)
+          </label>
+
+          {error && <p className="text-sm text-wine">{error}</p>}
+
+          <div className="mt-2 flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="px-5 py-3 text-[11px] uppercase tracking-[0.25em] text-muted-foreground hover:text-wine"
+            >
               Cancelar
             </button>
             <button

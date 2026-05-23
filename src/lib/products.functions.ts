@@ -61,7 +61,7 @@ const productSchema = z.object({
   id: z.string().uuid().optional(),
   slug: z.string().min(1).max(120).regex(/^[a-z0-9-]+$/, "slug: solo minúsculas, números y guiones"),
   name: z.string().min(1).max(200),
-  category: z.enum(["relojeria", "joyeria"]),
+  category: z.string().min(1).max(60).regex(/^[a-z0-9-]+$/, "category: slug inválido"),
   category_label: z.string().min(1).max(60),
   brand: z.string().min(1).max(120),
   material: z.string().min(1).max(200),
