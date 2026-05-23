@@ -892,6 +892,14 @@ function BannerEditor({
             required
             className="sm:col-span-2"
           />
+          <div className="sm:col-span-2 -mt-2 flex items-center gap-3">
+            {v.image && <img src={v.image} alt="" className="h-14 w-24 object-cover" />}
+            <ImageUpload
+              folder="banners"
+              label={v.image ? "↑ Reemplazar imagen" : "↑ Subir desde mi PC"}
+              onUploaded={(url) => set("image", url)}
+            />
+          </div>
           <Field label="Eyebrow (texto pequeño superior)" value={v.eyebrow} onChange={(x) => set("eyebrow", x)} className="sm:col-span-2" />
           <Field label="Título" value={v.title} onChange={(x) => set("title", x)} className="sm:col-span-2" />
           <div className="sm:col-span-2">
