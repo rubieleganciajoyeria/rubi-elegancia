@@ -10,6 +10,11 @@ import {
   deleteProduct,
   getMyRole,
 } from "@/lib/products.functions";
+import {
+  adminListBanners,
+  upsertBanner,
+  deleteBanner,
+} from "@/lib/banners.functions";
 import { formatCOP } from "@/data/products";
 
 export const Route = createFileRoute("/admin")({
@@ -110,6 +115,12 @@ function AdminPage() {
       </div>
 
       <div className="gold-divider my-8" />
+
+      <BannersAdmin />
+
+      <div className="gold-divider my-12" />
+
+      <h2 className="mb-6 font-serif text-2xl">Productos</h2>
 
       {productsQ.isLoading ? (
         <p className="text-sm text-muted-foreground">Cargando productos…</p>
