@@ -59,10 +59,18 @@ function AdminPage() {
 
   const saveM = useMutation({
     mutationFn: async (data: FormValues) => {
-      const { images, ...rest } = data;
-      const res = await save({ data: rest });
+      const cleanImages = data.images
+        .map((i) => ({ url: i.url.trim(), alt: i.alt?.trim() ?? "" }))
+        .filter((i) => i.url.length > 0);
+      const { images: _omit, ...rest } = data;
+      const payload = {
+        ...rest,
+        image: cleanImages[0]?.url ?? rest.image,
+        gallery: [] as string[],
+      };
+      const res = await save({ data: payload });
       const id = res.id;
-      await saveImages({ data: { product_id: id, images } });
+      await saveImages({ data: { product_id: id, images: cleanImages } });
       return res;
     },
     onSuccess: () => {
