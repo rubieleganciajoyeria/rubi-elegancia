@@ -12,6 +12,7 @@ const inputSchema = z.object({
   address: z.string().min(1).max(500),
   notes: z.string().max(1000).optional().default(""),
   user_id: z.string().uuid().optional().nullable(),
+  coupon_code: z.string().max(64).optional().default(""),
   items: z
     .array(
       z.object({
@@ -74,7 +75,23 @@ export const createWompiCheckout = createServerFn({ method: "POST" })
 
     const subtotal = rows.reduce((s, r) => s + r.subtotal, 0);
     const shipping = subtotal > 0 && subtotal < 500000 ? 25000 : 0;
-    const total = subtotal + shipping;
+
+    // Apply coupon if provided
+    let discount = 0;
+    let appliedCode = "";
+    const rawCode = (data.coupon_code ?? "").trim();
+    if (rawCode) {
+      const { data: cRows, error: cErr } = await supabaseAdmin.rpc("validate_coupon", {
+        _code: rawCode,
+        _subtotal: subtotal,
+      });
+      if (cErr) throw new Error(cErr.message);
+      const c = Array.isArray(cRows) ? cRows[0] : cRows;
+      if (!c || !c.valid) throw new Error(c?.reason || "Cupón inválido");
+      discount = Number(c.discount ?? 0);
+      appliedCode = String(c.code);
+    }
+    const total = Math.max(0, subtotal + shipping - discount);
     const amountInCents = total * 100;
     const currency = "COP";
 
@@ -92,6 +109,8 @@ export const createWompiCheckout = createServerFn({ method: "POST" })
         shipping,
         total,
         payment_method: "wompi",
+        coupon_code: appliedCode,
+        discount,
       })
       .select("id")
       .single();
@@ -108,6 +127,18 @@ export const createWompiCheckout = createServerFn({ method: "POST" })
       .from("orders")
       .update({ wompi_reference: reference, payment_reference: reference })
       .eq("id", order.id);
+
+    // Increment coupon usage
+    if (appliedCode) {
+      const { data: cur } = await supabaseAdmin
+        .from("coupons").select("used_count").eq("code", appliedCode).maybeSingle();
+      if (cur) {
+        await supabaseAdmin
+          .from("coupons")
+          .update({ used_count: (cur.used_count ?? 0) + 1 })
+          .eq("code", appliedCode);
+      }
+    }
 
     // Decrement stock
     for (const r of rows) {
