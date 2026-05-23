@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { mapProduct, type Product } from "@/data/products";
 import { listActiveProducts } from "@/lib/products.functions";
+import { listActiveCategories } from "@/lib/categories.functions";
 import { ProductCard } from "@/components/ProductCard";
 
 const productsQueryOptions = queryOptions({
@@ -10,11 +11,16 @@ const productsQueryOptions = queryOptions({
   queryFn: async () => (await listActiveProducts()).map(mapProduct),
 });
 
-type Search = { cat?: "relojeria" | "joyeria" };
+const categoriesQueryOptions = queryOptions({
+  queryKey: ["categories", "active"],
+  queryFn: async () => await listActiveCategories(),
+});
+
+type Search = { cat?: string };
 
 export const Route = createFileRoute("/catalogo")({
   validateSearch: (s: Record<string, unknown>): Search => ({
-    cat: s.cat === "joyeria" || s.cat === "relojeria" ? s.cat : undefined,
+    cat: typeof s.cat === "string" && /^[a-z0-9-]+$/.test(s.cat) ? s.cat : undefined,
   }),
   head: () => ({
     meta: [
@@ -22,16 +28,22 @@ export const Route = createFileRoute("/catalogo")({
       { name: "description", content: "Explora la colección completa de relojería y joyería Rubí." },
     ],
   }),
-  loader: ({ context }) => context.queryClient.ensureQueryData(productsQueryOptions),
+  loader: async ({ context }) => {
+    await Promise.all([
+      context.queryClient.ensureQueryData(productsQueryOptions),
+      context.queryClient.ensureQueryData(categoriesQueryOptions),
+    ]);
+  },
   component: Catalogo,
 });
 
 function Catalogo() {
   const { cat } = Route.useSearch();
   const { data: products } = useSuspenseQuery(productsQueryOptions);
+  const { data: categories } = useSuspenseQuery(categoriesQueryOptions);
   const brands = useMemo(() => Array.from(new Set(products.map((p) => p.brand))), [products]);
   const materials = useMemo(() => Array.from(new Set(products.map((p) => p.material))), [products]);
-  const [category, setCategory] = useState<"todos" | "relojeria" | "joyeria">(cat ?? "todos");
+  const [category, setCategory] = useState<string>(cat ?? "todos");
   const [brand, setBrand] = useState<string>("todas");
   const [material, setMaterial] = useState<string>("todos");
   const [maxPrice, setMaxPrice] = useState<number>(3000000);
@@ -64,9 +76,12 @@ function Catalogo() {
         {/* Filtros */}
         <aside className="space-y-8 text-sm">
           <FilterGroup label="Categoría">
-            {(["todos", "relojeria", "joyeria"] as const).map((v) => (
-              <FilterOption key={v} active={category === v} onClick={() => setCategory(v)}>
-                {v === "todos" ? "Todos" : v === "relojeria" ? "Relojería" : "Joyería"}
+            <FilterOption active={category === "todos"} onClick={() => setCategory("todos")}>
+              Todos
+            </FilterOption>
+            {categories.map((c) => (
+              <FilterOption key={c.slug} active={category === c.slug} onClick={() => setCategory(c.slug)}>
+                {c.name}
               </FilterOption>
             ))}
           </FilterGroup>
