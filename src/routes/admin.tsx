@@ -31,6 +31,10 @@ import {
   updateOrderStatus,
   deleteOrder,
 } from "@/lib/orders.functions";
+import {
+  listSiteContent,
+  upsertSiteContent,
+} from "@/lib/site-content.functions";
 import { formatCOP } from "@/data/products";
 
 export const Route = createFileRoute("/admin")({
@@ -167,6 +171,10 @@ function AdminPage() {
       <div className="gold-divider my-12" />
 
       <OrdersAdmin />
+
+      <div className="gold-divider my-12" />
+
+      <HomeSectionsAdmin />
 
       <div className="gold-divider my-12" />
 
