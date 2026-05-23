@@ -5,6 +5,7 @@ import { useWishlist } from "@/context/WishlistContext";
 
 export function ProductCard({ product }: { product: Product }) {
   const hasDiscount = !!product.discountPrice;
+  const soldOut = product.stock !== null && product.stock <= 0;
   const { has, toggle } = useWishlist();
   const fav = has(product.id);
   return (
@@ -25,6 +26,11 @@ export function ProductCard({ product }: { product: Product }) {
         {hasDiscount && (
           <span className="absolute left-3 top-3 bg-wine px-2.5 py-1 text-[10px] uppercase tracking-[0.2em] text-primary-foreground">
             Oferta
+          </span>
+        )}
+        {soldOut && (
+          <span className="absolute left-3 top-3 bg-foreground/80 px-2.5 py-1 text-[10px] uppercase tracking-[0.2em] text-background">
+            Agotado
           </span>
         )}
         <button
