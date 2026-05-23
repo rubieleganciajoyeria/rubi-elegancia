@@ -29,7 +29,7 @@ export const Route = createFileRoute("/producto/$slug")({
     context.queryClient.ensureQueryData(relatedQueryOptions);
     return { product };
   },
-  head: ({ loaderData }) => ({
+  head: ({ params, loaderData }) => ({
     meta: loaderData
       ? [
           { title: `${loaderData.product.name} — Rubí` },
@@ -37,6 +37,30 @@ export const Route = createFileRoute("/producto/$slug")({
           { property: "og:title", content: `${loaderData.product.name} — Rubí` },
           { property: "og:description", content: loaderData.product.description },
           { property: "og:image", content: loaderData.product.image },
+          { property: "og:type", content: "product" },
+          { property: "og:url", content: `/producto/${params.slug}` },
+        ]
+      : [],
+    links: [{ rel: "canonical", href: `/producto/${params.slug}` }],
+    scripts: loaderData
+      ? [
+          {
+            type: "application/ld+json",
+            children: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Product",
+              name: loaderData.product.name,
+              description: loaderData.product.description,
+              image: loaderData.product.image,
+              brand: loaderData.product.brand,
+              offers: {
+                "@type": "Offer",
+                price: loaderData.product.price,
+                priceCurrency: "COP",
+                availability: "https://schema.org/InStock",
+              },
+            }),
+          },
         ]
       : [],
   }),
