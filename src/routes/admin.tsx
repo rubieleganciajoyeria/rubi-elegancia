@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Pencil, Trash2, Plus, LogOut, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { ImageUpload } from "@/components/ImageUpload";
 import {
   adminListProducts,
   upsertProduct,
@@ -482,6 +483,15 @@ function ProductEditor({
               >
                 + Añadir imagen
               </button>
+              <span className="mx-3 text-foreground/30">·</span>
+              <ImageUpload
+                folder="products"
+                label="↑ Subir desde mi PC"
+                onUploaded={(url) => {
+                  const next = [...v.images, { url, alt: "" }];
+                  setV({ ...v, images: next, image: next[0]?.url ?? "" });
+                }}
+              />
             </div>
           </div>
 
