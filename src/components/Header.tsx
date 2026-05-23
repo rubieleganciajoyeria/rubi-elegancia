@@ -44,7 +44,7 @@ export function Header() {
               </span>
             )}
           </Link>
-          <Link to="/login" aria-label="Cuenta" className="hidden hover:text-wine md:block">
+          <Link to="/cuenta" aria-label="Mi cuenta" className="hidden hover:text-wine md:block">
             <User className="h-[18px] w-[18px]" strokeWidth={1.4} />
           </Link>
           <button
