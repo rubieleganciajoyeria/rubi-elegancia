@@ -5,6 +5,7 @@ import { useState } from "react";
 import { CheckCircle2, XCircle, Loader2, RotateCw } from "lucide-react";
 import { getOrderPaymentStatus, retryWompiPayment } from "@/lib/wompi.functions";
 import { formatCOP } from "@/data/products";
+import { WompiEnvBadge } from "@/components/WompiEnvBadge";
 
 type Search = { ref?: string; id?: string };
 
@@ -93,6 +94,9 @@ function ConfirmationPage() {
 
   return (
     <Wrap>
+      <div className="mb-6 flex justify-center">
+        <WompiEnvBadge />
+      </div>
       {isPending && (
         <>
           <Loader2 className="mx-auto h-12 w-12 animate-spin text-wine" />
