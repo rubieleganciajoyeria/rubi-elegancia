@@ -6,15 +6,31 @@ import { applyPromotions, type ActivePromotion } from "./promotions.functions";
 
 async function fetchActivePromotions(): Promise<ActivePromotion[]> {
   const nowIso = new Date().toISOString();
-  const { data, error } = await supabaseAdmin
-    .from("promotions")
-    .select("id,name,kind,value,ends_at,product_id,priority")
-    .eq("is_active", true)
-    .lte("starts_at", nowIso)
-    .or(`ends_at.is.null,ends_at.gt.${nowIso}`)
-    .order("priority", { ascending: false });
+  const [{ data, error }, { data: settings }] = await Promise.all([
+    supabaseAdmin
+      .from("promotions")
+      .select("id,name,kind,value,ends_at,product_id,priority")
+      .eq("is_active", true)
+      .lte("starts_at", nowIso)
+      .or(`ends_at.is.null,ends_at.gt.${nowIso}`)
+      .order("priority", { ascending: false }),
+    supabaseAdmin.from("site_content").select("data").eq("key", "global_settings").maybeSingle(),
+  ]);
   if (error) throw new Error(error.message);
-  return (data ?? []) as ActivePromotion[];
+  const list = (data ?? []) as ActivePromotion[];
+  const g: any = settings?.data ?? {};
+  if (g.global_discount_active && Number(g.global_discount_percent) > 0) {
+    list.push({
+      id: "__global__",
+      name: "Descuento global",
+      kind: "percent",
+      value: Math.min(99, Number(g.global_discount_percent)),
+      ends_at: null,
+      product_id: null,
+      priority: -1,
+    });
+  }
+  return list;
 }
 
 // --------- Public reads (no auth, uses admin client server-side) ---------
