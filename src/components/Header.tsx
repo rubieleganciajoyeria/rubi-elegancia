@@ -1,9 +1,12 @@
 import { Link } from "@tanstack/react-router";
-import { Search, ShoppingBag, User } from "lucide-react";
+import { Search, ShoppingBag, User, Heart } from "lucide-react";
 import { useCart } from "@/context/CartContext";
+import { useWishlist } from "@/context/WishlistContext";
 
 export function Header() {
   const { count, setOpen } = useCart();
+  const { ids } = useWishlist();
+  const favCount = ids.length;
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border/60 bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6 md:h-20 md:px-10">
@@ -29,9 +32,17 @@ export function Header() {
           <button aria-label="Buscar" className="hidden hover:text-wine md:block">
             <Search className="h-[18px] w-[18px]" strokeWidth={1.4} />
           </button>
-          <button aria-label="Cuenta" className="hidden hover:text-wine md:block">
+          <Link to="/favoritos" aria-label="Favoritos" className="relative hidden hover:text-wine md:block">
+            <Heart className="h-[18px] w-[18px]" strokeWidth={1.4} />
+            {favCount > 0 && (
+              <span className="absolute -right-2 -top-2 flex h-4 w-4 items-center justify-center rounded-full bg-wine text-[10px] font-medium text-primary-foreground">
+                {favCount}
+              </span>
+            )}
+          </Link>
+          <Link to="/login" aria-label="Cuenta" className="hidden hover:text-wine md:block">
             <User className="h-[18px] w-[18px]" strokeWidth={1.4} />
-          </button>
+          </Link>
           <button
             aria-label="Carrito"
             onClick={() => setOpen(true)}
