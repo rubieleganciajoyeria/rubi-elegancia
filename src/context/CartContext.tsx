@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { toast } from "sonner";
 import type { Product } from "@/data/products";
 
 export type CartItem = {
@@ -49,7 +50,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const add = (p: Product, qty = 1) => {
     const unit = p.discountPrice ?? p.price;
     const max = p.stock;
-    if (max !== null && max <= 0) return; // agotado
+    if (max !== null && max <= 0) {
+      toast.error(`${p.name} está agotado`);
+      return;
+    }
     setItems((prev) => {
       const found = prev.find((i) => i.id === p.id);
       if (found) {
@@ -73,6 +77,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       ];
     });
     setOpen(true);
+    toast.success("Agregado al carrito", { description: p.name });
   };
 
   const remove = (id: string) => setItems((prev) => prev.filter((i) => i.id !== id));

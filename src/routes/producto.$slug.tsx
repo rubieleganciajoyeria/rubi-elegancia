@@ -5,6 +5,7 @@ import { ShieldCheck, Truck, RefreshCcw, ShoppingBag, Heart } from "lucide-react
 import { formatCOP, mapProduct, type Product } from "@/data/products";
 import { getProductBySlug, listActiveProducts } from "@/lib/products.functions";
 import { ProductCard } from "@/components/ProductCard";
+import { ProductReviews } from "@/components/ProductReviews";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
 
@@ -233,6 +234,8 @@ function ProductDetail() {
           </div>
         </section>
       )}
+
+      <ProductReviews productId={product.id} />
     </div>
   );
 }
