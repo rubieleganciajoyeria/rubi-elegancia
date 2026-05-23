@@ -29,6 +29,11 @@ import {
   deletePromotion,
 } from "@/lib/promotions.functions";
 import {
+  adminListCoupons,
+  upsertCoupon,
+  deleteCoupon,
+} from "@/lib/coupons.functions";
+import {
   adminListOrders,
   updateOrderStatus,
   deleteOrder,
@@ -174,6 +179,10 @@ function AdminPage() {
       <div className="gold-divider my-12" />
 
       <PromotionsAdmin products={productsQ.data ?? []} />
+
+      <div className="gold-divider my-12" />
+
+      <CouponsAdmin />
 
       <div className="gold-divider my-12" />
 
@@ -1673,6 +1682,235 @@ function GlobalSettingsAdmin() {
         </div>
       </div>
     </section>
+  );
+}
+
+function CouponsAdmin() {
+  const list = useServerFn(adminListCoupons);
+  const save = useServerFn(upsertCoupon);
+  const del = useServerFn(deleteCoupon);
+  const qc = useQueryClient();
+  const q = useQuery({ queryKey: ["admin", "coupons"], queryFn: () => list() });
+  const [editing, setEditing] = useState<any | null>(null);
+
+  const saveM = useMutation({
+    mutationFn: (v: any) => save({ data: v }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "coupons"] });
+      setEditing(null);
+    },
+  });
+  const delM = useMutation({
+    mutationFn: (id: string) => del({ data: { id } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "coupons"] }),
+  });
+
+  return (
+    <section>
+      <div className="flex items-end justify-between">
+        <h2 className="font-serif text-2xl">Cupones</h2>
+        <button
+          onClick={() => setEditing({ kind: "percent", value: 10, is_active: true, min_subtotal: 0 })}
+          className="inline-flex items-center gap-2 bg-wine px-4 py-2 text-[11px] uppercase tracking-[0.25em] text-primary-foreground hover:opacity-90"
+        >
+          <Plus className="h-4 w-4" /> Nuevo cupón
+        </button>
+      </div>
+
+      <div className="mt-6 overflow-x-auto border border-border/60">
+        <table className="w-full text-sm">
+          <thead className="bg-secondary/50 text-left text-[11px] uppercase tracking-[0.15em] text-muted-foreground">
+            <tr>
+              <th className="p-3">Código</th>
+              <th className="p-3">Descuento</th>
+              <th className="p-3">Mín. compra</th>
+              <th className="p-3">Usos</th>
+              <th className="p-3">Vence</th>
+              <th className="p-3">Estado</th>
+              <th className="p-3 text-right">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(q.data ?? []).map((c: any) => (
+              <tr key={c.id} className="border-t border-border/60">
+                <td className="p-3 font-mono text-xs">{c.code}</td>
+                <td className="p-3">
+                  {c.kind === "percent" ? `${c.value}%` : formatCOP(c.value)}
+                </td>
+                <td className="p-3 text-muted-foreground">
+                  {c.min_subtotal ? formatCOP(c.min_subtotal) : "—"}
+                </td>
+                <td className="p-3 text-muted-foreground">
+                  {c.used_count}{c.max_uses ? ` / ${c.max_uses}` : ""}
+                </td>
+                <td className="p-3 text-muted-foreground">
+                  {c.expires_at ? new Date(c.expires_at).toLocaleDateString("es-CO") : "—"}
+                </td>
+                <td className="p-3">
+                  <span className={`px-2 py-1 text-[10px] uppercase tracking-wider ${c.is_active ? "bg-secondary" : "bg-muted text-muted-foreground"}`}>
+                    {c.is_active ? "Activo" : "Inactivo"}
+                  </span>
+                </td>
+                <td className="p-3 text-right">
+                  <button onClick={() => setEditing(c)} className="mr-2 p-2 hover:text-wine" aria-label="Editar">
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => { if (confirm(`¿Eliminar cupón ${c.code}?`)) delM.mutate(c.id); }}
+                    className="p-2 hover:text-wine"
+                    aria-label="Eliminar"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </td>
+              </tr>
+            ))}
+            {(q.data ?? []).length === 0 && (
+              <tr><td colSpan={7} className="p-6 text-center text-sm text-muted-foreground">No hay cupones aún.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {editing && (
+        <CouponEditor
+          initial={editing}
+          onCancel={() => setEditing(null)}
+          onSubmit={(v) => saveM.mutate(v)}
+          saving={saveM.isPending}
+          error={saveM.error instanceof Error ? saveM.error.message : null}
+        />
+      )}
+    </section>
+  );
+}
+
+function CouponEditor({
+  initial, onCancel, onSubmit, saving, error,
+}: {
+  initial: any;
+  onCancel: () => void;
+  onSubmit: (v: any) => void;
+  saving: boolean;
+  error: string | null;
+}) {
+  const [v, setV] = useState({
+    id: initial.id,
+    code: initial.code ?? "",
+    kind: (initial.kind ?? "percent") as "percent" | "fixed",
+    value: initial.value ?? 10,
+    min_subtotal: initial.min_subtotal ?? 0,
+    max_uses: initial.max_uses ?? null as number | null,
+    expires_at: initial.expires_at ? String(initial.expires_at).slice(0, 10) : "",
+    is_active: initial.is_active ?? true,
+  });
+
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, []);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4">
+      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto bg-background p-8 shadow-2xl">
+        <div className="flex items-start justify-between">
+          <h2 className="font-serif text-2xl">{v.id ? "Editar cupón" : "Nuevo cupón"}</h2>
+          <button onClick={onCancel} aria-label="Cerrar" className="p-2 hover:text-wine">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            onSubmit({
+              ...v,
+              code: v.code.trim().toUpperCase(),
+              value: Number(v.value),
+              min_subtotal: Number(v.min_subtotal) || 0,
+              max_uses: v.max_uses ? Number(v.max_uses) : null,
+              expires_at: v.expires_at ? new Date(v.expires_at).toISOString() : null,
+            });
+          }}
+          className="mt-6 grid gap-4 sm:grid-cols-2"
+        >
+          <div className="sm:col-span-2">
+            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Código</label>
+            <input
+              value={v.code}
+              onChange={(e) => setV({ ...v, code: e.target.value.toUpperCase() })}
+              required pattern="[A-Za-z0-9_-]+"
+              className="mt-2 w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm uppercase focus:border-wine"
+            />
+          </div>
+          <div>
+            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Tipo</label>
+            <select
+              value={v.kind}
+              onChange={(e) => setV({ ...v, kind: e.target.value as any })}
+              className="mt-2 w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm focus:border-wine"
+            >
+              <option value="percent">Porcentaje (%)</option>
+              <option value="fixed">Monto fijo (COP)</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+              Valor {v.kind === "percent" ? "(%)" : "(COP)"}
+            </label>
+            <input
+              type="number" min={1} value={v.value}
+              onChange={(e) => setV({ ...v, value: Number(e.target.value) })}
+              className="mt-2 w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm focus:border-wine"
+            />
+          </div>
+          <div>
+            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Mínimo compra (COP)</label>
+            <input
+              type="number" min={0} value={v.min_subtotal}
+              onChange={(e) => setV({ ...v, min_subtotal: Number(e.target.value) })}
+              className="mt-2 w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm focus:border-wine"
+            />
+          </div>
+          <div>
+            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Usos máximos (opcional)</label>
+            <input
+              type="number" min={1} value={v.max_uses ?? ""}
+              onChange={(e) => setV({ ...v, max_uses: e.target.value ? Number(e.target.value) : null })}
+              className="mt-2 w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm focus:border-wine"
+            />
+          </div>
+          <div>
+            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Vence (opcional)</label>
+            <input
+              type="date" value={v.expires_at}
+              onChange={(e) => setV({ ...v, expires_at: e.target.value })}
+              className="mt-2 w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm focus:border-wine"
+            />
+          </div>
+          <label className="sm:col-span-2 flex items-center gap-2 text-sm">
+            <input
+              type="checkbox" checked={v.is_active}
+              onChange={(e) => setV({ ...v, is_active: e.target.checked })}
+            />
+            Activo
+          </label>
+
+          {error && <p className="sm:col-span-2 text-sm text-destructive">{error}</p>}
+
+          <div className="sm:col-span-2 mt-4 flex justify-end gap-3">
+            <button type="button" onClick={onCancel} className="px-5 py-2 text-[11px] uppercase tracking-[0.2em] text-muted-foreground hover:text-wine">
+              Cancelar
+            </button>
+            <button
+              type="submit" disabled={saving}
+              className="bg-wine px-6 py-3 text-[11px] uppercase tracking-[0.25em] text-primary-foreground hover:opacity-90 disabled:opacity-50"
+            >
+              {saving ? "Guardando…" : "Guardar"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }
 

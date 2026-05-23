@@ -5,6 +5,7 @@ import { useCart } from "@/context/CartContext";
 import { formatCOP } from "@/data/products";
 import { useServerFn } from "@tanstack/react-start";
 import { createWompiCheckout } from "@/lib/wompi.functions";
+import { validateCoupon } from "@/lib/coupons.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { getGlobalSettings } from "@/lib/site-content.functions";
@@ -35,6 +36,7 @@ function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const create = useServerFn(createWompiCheckout);
+  const validate = useServerFn(validateCoupon);
   const { data: settings } = useQuery({
     queryKey: ["global-settings"],
     queryFn: () => getGlobalSettings(),
@@ -48,8 +50,33 @@ function CheckoutPage() {
     address: "",
     notes: "",
   });
+  const [couponInput, setCouponInput] = useState("");
+  const [coupon, setCoupon] = useState<{ code: string; discount: number } | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [couponLoading, setCouponLoading] = useState(false);
   const shipping = subtotal > 0 && subtotal < 500000 ? 25000 : 0;
-  const total = subtotal + shipping;
+  const discount = coupon?.discount ?? 0;
+  const total = Math.max(0, subtotal + shipping - discount);
+
+  const applyCoupon = async () => {
+    const code = couponInput.trim();
+    if (!code) return;
+    setCouponLoading(true);
+    setCouponError(null);
+    try {
+      const res = await validate({ data: { code, subtotal } });
+      if (!res.valid) {
+        setCoupon(null);
+        setCouponError(res.reason || "Cupón inválido");
+      } else {
+        setCoupon({ code: res.code, discount: res.discount });
+      }
+    } catch (e: any) {
+      setCouponError(e?.message ?? "Cupón inválido");
+    } finally {
+      setCouponLoading(false);
+    }
+  };
 
   const onChange = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm({ ...form, [k]: e.target.value });
@@ -69,6 +96,7 @@ function CheckoutPage() {
           address: form.address,
           notes: form.notes,
           user_id: u.user?.id ?? null,
+          coupon_code: coupon?.code ?? "",
           items: items.map((i) => ({ product_id: i.id, qty: i.qty })),
         },
       });
@@ -220,11 +248,49 @@ function CheckoutPage() {
                 <dt className="text-muted-foreground">Envío</dt>
                 <dd>{shipping === 0 ? "Gratis" : formatCOP(shipping)}</dd>
               </div>
+              {coupon && (
+                <div className="flex justify-between text-wine">
+                  <dt>
+                    Cupón {coupon.code}{" "}
+                    <button
+                      type="button"
+                      onClick={() => { setCoupon(null); setCouponInput(""); }}
+                      className="ml-1 text-[10px] uppercase tracking-wider text-muted-foreground hover:text-wine"
+                    >
+                      quitar
+                    </button>
+                  </dt>
+                  <dd>-{formatCOP(discount)}</dd>
+                </div>
+              )}
               <div className="flex justify-between border-t border-border/60 pt-3 text-base">
                 <dt className="font-medium">Total</dt>
                 <dd className="font-serif text-xl">{formatCOP(total)}</dd>
               </div>
             </dl>
+
+            <div className="mt-6">
+              <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+                Código de cupón
+              </label>
+              <div className="mt-2 flex gap-2">
+                <input
+                  value={couponInput}
+                  onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                  placeholder="EJ: RUBI10"
+                  className="flex-1 border border-foreground/20 bg-transparent px-3 py-2 text-sm uppercase outline-none focus:border-wine"
+                />
+                <button
+                  type="button"
+                  onClick={applyCoupon}
+                  disabled={couponLoading || !couponInput.trim()}
+                  className="border border-foreground/30 px-4 py-2 text-[11px] uppercase tracking-[0.2em] hover:border-wine hover:text-wine disabled:opacity-50"
+                >
+                  {couponLoading ? "..." : "Aplicar"}
+                </button>
+              </div>
+              {couponError && <p className="mt-2 text-xs text-destructive">{couponError}</p>}
+            </div>
 
             <ul className="mt-6 space-y-2 text-xs text-muted-foreground">
               <li className="flex items-center gap-2">
