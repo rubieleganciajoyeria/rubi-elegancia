@@ -1,17 +1,23 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { ArrowRight, ShieldCheck, Sparkles, Gem } from "lucide-react";
-import heroImg from "@/assets/hero-watch.jpg";
 import catWatches from "@/assets/cat-watches.jpg";
 import catJewelry from "@/assets/cat-jewelry.jpg";
 import emotional from "@/assets/emotional-banner.jpg";
 import { mapProduct } from "@/data/products";
 import { listActiveProducts } from "@/lib/products.functions";
+import { listActiveBanners } from "@/lib/banners.functions";
 import { ProductCard } from "@/components/ProductCard";
+import { HeroCarousel } from "@/components/HeroCarousel";
 
 const productsQueryOptions = queryOptions({
   queryKey: ["products", "active"],
   queryFn: async () => (await listActiveProducts()).map(mapProduct),
+});
+
+const bannersQueryOptions = queryOptions({
+  queryKey: ["banners", "active"],
+  queryFn: () => listActiveBanners(),
 });
 
 export const Route = createFileRoute("/")({
@@ -23,44 +29,21 @@ export const Route = createFileRoute("/")({
       { property: "og:description", content: "Relojería y joyería premium en Colombia." },
     ],
   }),
-  loader: ({ context }) => context.queryClient.ensureQueryData(productsQueryOptions),
+  loader: ({ context }) => {
+    context.queryClient.ensureQueryData(bannersQueryOptions);
+    return context.queryClient.ensureQueryData(productsQueryOptions);
+  },
   component: Home,
 });
 
 function Home() {
   const { data: products } = useSuspenseQuery(productsQueryOptions);
+  const { data: banners } = useSuspenseQuery(bannersQueryOptions);
   const featured = products.slice(0, 4);
   return (
     <div>
-      {/* Hero */}
-      <section className="relative h-[88vh] min-h-[640px] w-full overflow-hidden">
-        <img
-          src={heroImg}
-          alt="Reloj dorado de lujo Rubí"
-          width={1920}
-          height={1080}
-          className="absolute inset-0 h-full w-full object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-foreground/60 via-foreground/15 to-transparent" />
-        <div className="relative z-10 mx-auto flex h-full max-w-7xl flex-col items-start justify-end px-6 pb-20 md:px-10 md:pb-28">
-          <p className="text-xs uppercase tracking-[0.35em] text-background/80 animate-fade-in">
-            Rubí · Relojería & Joyería
-          </p>
-          <h1 className="mt-6 max-w-3xl font-serif text-5xl leading-[1.05] text-background text-balance md:text-7xl lg:text-[5.5rem] animate-fade-in">
-            Elegancia que trasciende
-          </h1>
-          <p className="mt-6 max-w-md text-sm leading-relaxed text-background/85 md:text-base animate-fade-in">
-            Piezas únicas seleccionadas a mano. El tiempo y la joya como testigos de los momentos que importan.
-          </p>
-          <Link
-            to="/catalogo"
-            className="group mt-10 inline-flex items-center gap-3 border border-background/70 px-8 py-4 text-[11px] uppercase tracking-[0.28em] text-background transition-all hover:bg-background hover:text-foreground animate-fade-in"
-          >
-            Explorar colección
-            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" strokeWidth={1.4} />
-          </Link>
-        </div>
-      </section>
+      {/* Hero carrusel administrable */}
+      <HeroCarousel banners={banners} />
 
       {/* Categorías */}
       <section className="mx-auto max-w-7xl px-6 py-24 md:px-10 md:py-32">
