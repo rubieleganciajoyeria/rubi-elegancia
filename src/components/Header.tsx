@@ -2,13 +2,19 @@ import { Link } from "@tanstack/react-router";
 import { Search, ShoppingBag, User, Heart } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
+import rubiLogo from "@/assets/rubi-logo.png";
 
 export function Header() {
   const { count, setOpen } = useCart();
   const { ids } = useWishlist();
   const favCount = ids.length;
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-border/60 bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70">
+    <header className="sticky top-0 z-40 w-full border-b border-border/60 bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/75">
+      <div className="bg-wine text-background">
+        <p className="mx-auto max-w-7xl px-6 py-1.5 text-center text-[10px] uppercase tracking-[0.4em] md:px-10">
+          Elegancia que trasciende
+        </p>
+      </div>
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6 md:h-20 md:px-10">
         <nav className="hidden flex-1 items-center gap-8 text-[0.78rem] uppercase tracking-[0.18em] text-foreground/80 md:flex">
           <Link to="/catalogo" search={{ cat: "relojeria" } as never} className="hover:text-wine transition-colors">
@@ -22,10 +28,8 @@ export function Header() {
           </Link>
         </nav>
 
-        <Link to="/" className="flex flex-1 items-center justify-center md:flex-none">
-          <span className="font-serif text-2xl tracking-[0.3em] text-foreground md:text-3xl">
-            RUBÍ
-          </span>
+        <Link to="/" aria-label="Rubí — Inicio" className="flex flex-1 items-center justify-center md:flex-none">
+          <img src={rubiLogo} alt="Rubí Relojería & Joyería" className="h-12 w-auto md:h-14" />
         </Link>
 
         <div className="flex flex-1 items-center justify-end gap-5 text-foreground/80">
