@@ -29,7 +29,7 @@ export function Header() {
         </nav>
 
         <Link to="/" aria-label="Rubí — Inicio" className="flex flex-1 items-center justify-center md:flex-none">
-          <img src={rubiLogo} alt="Rubí Relojería & Joyería" className="h-12 w-auto md:h-14" />
+          <img src={rubiLogo} alt="Rubí Relojería & Joyería" className="h-[62px] w-auto md:h-[73px]" />
         </Link>
 
         <div className="flex flex-1 items-center justify-end gap-5 text-foreground/80">
