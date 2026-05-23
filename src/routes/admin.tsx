@@ -234,7 +234,7 @@ type FormValues = {
   id?: string;
   slug: string;
   name: string;
-  category: "relojeria" | "joyeria";
+  category: string;
   category_label: string;
   brand: string;
   material: string;
@@ -250,12 +250,14 @@ type FormValues = {
 
 function ProductEditor({
   initial,
+  categories,
   onCancel,
   onSubmit,
   saving,
   error,
 }: {
   initial: Partial<ProductRow>;
+  categories: Array<{ slug: string; name: string }>;
   onCancel: () => void;
   onSubmit: (v: FormValues) => void;
   saving: boolean;
@@ -265,8 +267,8 @@ function ProductEditor({
     id: initial.id,
     slug: initial.slug ?? "",
     name: initial.name ?? "",
-    category: (initial.category as "relojeria" | "joyeria") ?? "relojeria",
-    category_label: initial.category_label ?? "Relojería",
+    category: initial.category ?? categories[0]?.slug ?? "",
+    category_label: initial.category_label ?? categories[0]?.name ?? "",
     brand: initial.brand ?? "Rubí Atelier",
     material: initial.material ?? "",
     price: initial.price ?? 0,
@@ -314,13 +316,20 @@ function ProductEditor({
             <select
               value={v.category}
               onChange={(e) => {
-                const cat = e.target.value as "relojeria" | "joyeria";
-                setV({ ...v, category: cat, category_label: cat === "relojeria" ? "Relojería" : "Joyería" });
+                const cat = e.target.value;
+                const label = categories.find((c) => c.slug === cat)?.name ?? cat;
+                setV({ ...v, category: cat, category_label: label });
               }}
               className="mt-2 w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm focus:border-wine"
             >
-              <option value="relojeria">Relojería</option>
-              <option value="joyeria">Joyería</option>
+              {categories.length === 0 && (
+                <option value="">— Crea una categoría primero —</option>
+              )}
+              {categories.map((c) => (
+                <option key={c.slug} value={c.slug}>
+                  {c.name}
+                </option>
+              ))}
             </select>
           </div>
           <Field label="Marca" value={v.brand} onChange={(x) => set("brand", x)} required />
