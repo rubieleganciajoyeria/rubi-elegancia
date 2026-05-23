@@ -9,9 +9,10 @@ export const listActiveProducts = createServerFn({ method: "GET" }).handler(
   async () => {
     const { data, error } = await supabaseAdmin
       .from("products")
-      .select("*")
+      .select("*, product_images(id,url,alt,sort_order,is_primary)")
       .eq("is_active", true)
-      .order("sort_order", { ascending: true });
+      .order("sort_order", { ascending: true })
+      .order("sort_order", { foreignTable: "product_images", ascending: true });
     if (error) throw new Error(error.message);
     return data ?? [];
   },
@@ -24,9 +25,10 @@ export const getProductBySlug = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const { data: row, error } = await supabaseAdmin
       .from("products")
-      .select("*")
+      .select("*, product_images(id,url,alt,sort_order,is_primary)")
       .eq("slug", data.slug)
       .eq("is_active", true)
+      .order("sort_order", { foreignTable: "product_images", ascending: true })
       .maybeSingle();
     if (error) throw new Error(error.message);
     return row;
@@ -51,8 +53,9 @@ export const adminListProducts = createServerFn({ method: "GET" })
     await assertAdmin(context.userId);
     const { data, error } = await supabaseAdmin
       .from("products")
-      .select("*")
-      .order("sort_order", { ascending: true });
+      .select("*, product_images(id,url,alt,sort_order,is_primary)")
+      .order("sort_order", { ascending: true })
+      .order("sort_order", { foreignTable: "product_images", ascending: true });
     if (error) throw new Error(error.message);
     return data ?? [];
   });
@@ -107,6 +110,43 @@ export const deleteProduct = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
     const { error } = await supabaseAdmin.from("products").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+// --------- Product images (ordered) ---------
+
+const imagesSchema = z.object({
+  product_id: z.string().uuid(),
+  images: z
+    .array(
+      z.object({
+        url: z.string().min(1).max(500),
+        alt: z.string().max(200).default(""),
+      }),
+    )
+    .max(20),
+});
+
+export const replaceProductImages = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => imagesSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
+    const { error: delErr } = await supabaseAdmin
+      .from("product_images")
+      .delete()
+      .eq("product_id", data.product_id);
+    if (delErr) throw new Error(delErr.message);
+    if (data.images.length === 0) return { ok: true };
+    const rows = data.images.map((img, idx) => ({
+      product_id: data.product_id,
+      url: img.url,
+      alt: img.alt ?? "",
+      sort_order: idx,
+      is_primary: idx === 0,
+    }));
+    const { error } = await supabaseAdmin.from("product_images").insert(rows);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
