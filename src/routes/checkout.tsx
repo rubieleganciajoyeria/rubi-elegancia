@@ -248,11 +248,49 @@ function CheckoutPage() {
                 <dt className="text-muted-foreground">Envío</dt>
                 <dd>{shipping === 0 ? "Gratis" : formatCOP(shipping)}</dd>
               </div>
+              {coupon && (
+                <div className="flex justify-between text-wine">
+                  <dt>
+                    Cupón {coupon.code}{" "}
+                    <button
+                      type="button"
+                      onClick={() => { setCoupon(null); setCouponInput(""); }}
+                      className="ml-1 text-[10px] uppercase tracking-wider text-muted-foreground hover:text-wine"
+                    >
+                      quitar
+                    </button>
+                  </dt>
+                  <dd>-{formatCOP(discount)}</dd>
+                </div>
+              )}
               <div className="flex justify-between border-t border-border/60 pt-3 text-base">
                 <dt className="font-medium">Total</dt>
                 <dd className="font-serif text-xl">{formatCOP(total)}</dd>
               </div>
             </dl>
+
+            <div className="mt-6">
+              <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+                Código de cupón
+              </label>
+              <div className="mt-2 flex gap-2">
+                <input
+                  value={couponInput}
+                  onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                  placeholder="EJ: RUBI10"
+                  className="flex-1 border border-foreground/20 bg-transparent px-3 py-2 text-sm uppercase outline-none focus:border-wine"
+                />
+                <button
+                  type="button"
+                  onClick={applyCoupon}
+                  disabled={couponLoading || !couponInput.trim()}
+                  className="border border-foreground/30 px-4 py-2 text-[11px] uppercase tracking-[0.2em] hover:border-wine hover:text-wine disabled:opacity-50"
+                >
+                  {couponLoading ? "..." : "Aplicar"}
+                </button>
+              </div>
+              {couponError && <p className="mt-2 text-xs text-destructive">{couponError}</p>}
+            </div>
 
             <ul className="mt-6 space-y-2 text-xs text-muted-foreground">
               <li className="flex items-center gap-2">
