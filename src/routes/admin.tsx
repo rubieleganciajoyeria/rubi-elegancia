@@ -1,5 +1,5 @@
 import { createFileRoute, redirect, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Pencil, Trash2, Plus, LogOut, X } from "lucide-react";
@@ -583,8 +583,8 @@ function OrdersAdmin() {
             </thead>
             <tbody>
               {(ordersQ.data ?? []).map((o: any) => (
-                <>
-                  <tr key={o.id} className="border-t border-border/60">
+                <Fragment key={o.id}>
+                  <tr className="border-t border-border/60">
                     <td className="p-3 text-xs text-muted-foreground">
                       {new Date(o.created_at).toLocaleString()}
                     </td>
@@ -646,7 +646,7 @@ function OrdersAdmin() {
                       </td>
                     </tr>
                   )}
-                </>
+                </Fragment>
               ))}
             </tbody>
           </table>
