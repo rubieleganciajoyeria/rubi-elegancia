@@ -164,6 +164,7 @@ export type Database = {
           total: number
           updated_at: string
           user_id: string | null
+          wompi_payload: Json
           wompi_reference: string
           wompi_transaction_id: string
         }
@@ -184,6 +185,7 @@ export type Database = {
           total?: number
           updated_at?: string
           user_id?: string | null
+          wompi_payload?: Json
           wompi_reference?: string
           wompi_transaction_id?: string
         }
@@ -204,6 +206,7 @@ export type Database = {
           total?: number
           updated_at?: string
           user_id?: string | null
+          wompi_payload?: Json
           wompi_reference?: string
           wompi_transaction_id?: string
         }
