@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { getMyRole } from "@/lib/products.functions";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -29,11 +30,16 @@ function LoginPage() {
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: window.location.origin + "/admin" },
+          options: { emailRedirectTo: window.location.origin + "/cuenta" },
         });
         if (error) throw error;
       }
-      navigate({ to: "/admin" });
+      try {
+        const role = await getMyRole();
+        navigate({ to: role.isAdmin ? "/admin" : "/cuenta" });
+      } catch {
+        navigate({ to: "/cuenta" });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error desconocido");
     } finally {
