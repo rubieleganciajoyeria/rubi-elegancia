@@ -2,19 +2,39 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { applyPromotions, type ActivePromotion } from "./promotions.functions";
+
+async function fetchActivePromotions(): Promise<ActivePromotion[]> {
+  const nowIso = new Date().toISOString();
+  const { data, error } = await supabaseAdmin
+    .from("promotions")
+    .select("id,name,kind,value,ends_at,product_id,priority")
+    .eq("is_active", true)
+    .lte("starts_at", nowIso)
+    .or(`ends_at.is.null,ends_at.gt.${nowIso}`)
+    .order("priority", { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as ActivePromotion[];
+}
 
 // --------- Public reads (no auth, uses admin client server-side) ---------
 
 export const listActiveProducts = createServerFn({ method: "GET" }).handler(
   async () => {
-    const { data, error } = await supabaseAdmin
-      .from("products")
-      .select("*, product_images(id,url,alt,sort_order,is_primary)")
-      .eq("is_active", true)
-      .order("sort_order", { ascending: true })
-      .order("sort_order", { foreignTable: "product_images", ascending: true });
+    const [{ data, error }, promos] = await Promise.all([
+      supabaseAdmin
+        .from("products")
+        .select("*, product_images(id,url,alt,sort_order,is_primary)")
+        .eq("is_active", true)
+        .order("sort_order", { ascending: true })
+        .order("sort_order", { foreignTable: "product_images", ascending: true }),
+      fetchActivePromotions(),
+    ]);
     if (error) throw new Error(error.message);
-    return data ?? [];
+    return (data ?? []).map((row) => ({
+      ...row,
+      discount_price: applyPromotions(row.price, row.discount_price, row.id, promos),
+    }));
   },
 );
 
@@ -23,15 +43,22 @@ export const getProductBySlug = createServerFn({ method: "GET" })
     z.object({ slug: z.string().min(1).max(120) }).parse(input),
   )
   .handler(async ({ data }) => {
-    const { data: row, error } = await supabaseAdmin
-      .from("products")
-      .select("*, product_images(id,url,alt,sort_order,is_primary)")
-      .eq("slug", data.slug)
-      .eq("is_active", true)
-      .order("sort_order", { foreignTable: "product_images", ascending: true })
-      .maybeSingle();
+    const [{ data: row, error }, promos] = await Promise.all([
+      supabaseAdmin
+        .from("products")
+        .select("*, product_images(id,url,alt,sort_order,is_primary)")
+        .eq("slug", data.slug)
+        .eq("is_active", true)
+        .order("sort_order", { foreignTable: "product_images", ascending: true })
+        .maybeSingle(),
+      fetchActivePromotions(),
+    ]);
     if (error) throw new Error(error.message);
-    return row;
+    if (!row) return null;
+    return {
+      ...row,
+      discount_price: applyPromotions(row.price, row.discount_price, row.id, promos),
+    };
   });
 
 // --------- Admin CRUD (auth + admin role required) ---------
