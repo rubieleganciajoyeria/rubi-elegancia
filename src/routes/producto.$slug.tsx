@@ -3,6 +3,7 @@ import { useState } from "react";
 import { ShieldCheck, Truck, RefreshCcw, ShoppingBag, Heart } from "lucide-react";
 import { products, formatCOP, type Product } from "@/data/products";
 import { ProductCard } from "@/components/ProductCard";
+import { useCart } from "@/context/CartContext";
 
 export const Route = createFileRoute("/producto/$slug")({
   loader: ({ params }): { product: Product } => {
@@ -43,6 +44,8 @@ export const Route = createFileRoute("/producto/$slug")({
 function ProductDetail() {
   const { product } = Route.useLoaderData();
   const [active, setActive] = useState(0);
+  const [qty, setQtyLocal] = useState(1);
+  const { add, setOpen } = useCart();
   const hasDiscount = !!product.discountPrice;
   const related = products.filter((p) => p.id !== product.id && p.category === product.category).slice(0, 3);
 
@@ -104,18 +107,46 @@ function ProductDetail() {
             <dd>{product.brand}</dd>
           </dl>
 
-          <div className="mt-10 flex flex-col gap-3 sm:flex-row">
-            <button className="inline-flex flex-1 items-center justify-center gap-2 bg-wine px-8 py-4 text-[11px] uppercase tracking-[0.25em] text-primary-foreground transition-opacity hover:opacity-90">
-              <ShoppingBag className="h-4 w-4" strokeWidth={1.5} />
-              Comprar ahora
-            </button>
-            <button className="inline-flex items-center justify-center gap-2 border border-foreground/30 px-8 py-4 text-[11px] uppercase tracking-[0.25em] text-foreground transition-colors hover:border-wine hover:text-wine">
+          <div className="mt-10 flex items-center gap-3">
+            <div className="flex items-center border border-foreground/30">
+              <button
+                onClick={() => setQtyLocal((q) => Math.max(1, q - 1))}
+                className="px-3 py-3 hover:text-wine"
+                aria-label="Restar"
+              >
+                −
+              </button>
+              <span className="min-w-[36px] text-center text-sm">{qty}</span>
+              <button
+                onClick={() => setQtyLocal((q) => q + 1)}
+                className="px-3 py-3 hover:text-wine"
+                aria-label="Sumar"
+              >
+                +
+              </button>
+            </div>
+            <button
+              onClick={() => add(product, qty)}
+              className="inline-flex flex-1 items-center justify-center gap-2 border border-foreground/30 px-8 py-4 text-[11px] uppercase tracking-[0.25em] text-foreground transition-colors hover:border-wine hover:text-wine"
+            >
               Agregar al carrito
             </button>
             <button aria-label="Favorito" className="inline-flex items-center justify-center border border-foreground/30 p-4 transition-colors hover:border-wine hover:text-wine">
               <Heart className="h-4 w-4" strokeWidth={1.5} />
             </button>
           </div>
+          <button
+            onClick={() => {
+              add(product, qty);
+              setOpen(false);
+              // navigate to checkout
+              window.location.href = "/checkout";
+            }}
+            className="mt-3 inline-flex w-full items-center justify-center gap-2 bg-wine px-8 py-4 text-[11px] uppercase tracking-[0.25em] text-primary-foreground transition-opacity hover:opacity-90"
+          >
+            <ShoppingBag className="h-4 w-4" strokeWidth={1.5} />
+            Comprar ahora
+          </button>
 
           <div className="gold-divider mt-10" />
 
