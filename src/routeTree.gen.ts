@@ -20,6 +20,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProductoSlugRouteImport } from './routes/producto.$slug'
 import { Route as MarcaSlugRouteImport } from './routes/marca.$slug'
 import { Route as CheckoutConfirmacionRouteImport } from './routes/checkout.confirmacion'
+import { Route as AuthUpdatePasswordRouteImport } from './routes/auth/update-password'
 import { Route as ApiPublicWompiWebhookRouteImport } from './routes/api/public/wompi-webhook'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
@@ -77,6 +78,11 @@ const CheckoutConfirmacionRoute = CheckoutConfirmacionRouteImport.update({
   path: '/confirmacion',
   getParentRoute: () => CheckoutRoute,
 } as any)
+const AuthUpdatePasswordRoute = AuthUpdatePasswordRouteImport.update({
+  id: '/auth/update-password',
+  path: '/auth/update-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicWompiWebhookRoute = ApiPublicWompiWebhookRouteImport.update({
   id: '/api/public/wompi-webhook',
   path: '/api/public/wompi-webhook',
@@ -92,6 +98,7 @@ export interface FileRoutesByFullPath {
   '/favoritos': typeof FavoritosRoute
   '/login': typeof LoginRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/auth/update-password': typeof AuthUpdatePasswordRoute
   '/checkout/confirmacion': typeof CheckoutConfirmacionRoute
   '/marca/$slug': typeof MarcaSlugRoute
   '/producto/$slug': typeof ProductoSlugRoute
@@ -106,6 +113,7 @@ export interface FileRoutesByTo {
   '/favoritos': typeof FavoritosRoute
   '/login': typeof LoginRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/auth/update-password': typeof AuthUpdatePasswordRoute
   '/checkout/confirmacion': typeof CheckoutConfirmacionRoute
   '/marca/$slug': typeof MarcaSlugRoute
   '/producto/$slug': typeof ProductoSlugRoute
@@ -121,6 +129,7 @@ export interface FileRoutesById {
   '/favoritos': typeof FavoritosRoute
   '/login': typeof LoginRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/auth/update-password': typeof AuthUpdatePasswordRoute
   '/checkout/confirmacion': typeof CheckoutConfirmacionRoute
   '/marca/$slug': typeof MarcaSlugRoute
   '/producto/$slug': typeof ProductoSlugRoute
@@ -137,6 +146,7 @@ export interface FileRouteTypes {
     | '/favoritos'
     | '/login'
     | '/sitemap.xml'
+    | '/auth/update-password'
     | '/checkout/confirmacion'
     | '/marca/$slug'
     | '/producto/$slug'
@@ -151,6 +161,7 @@ export interface FileRouteTypes {
     | '/favoritos'
     | '/login'
     | '/sitemap.xml'
+    | '/auth/update-password'
     | '/checkout/confirmacion'
     | '/marca/$slug'
     | '/producto/$slug'
@@ -165,6 +176,7 @@ export interface FileRouteTypes {
     | '/favoritos'
     | '/login'
     | '/sitemap.xml'
+    | '/auth/update-password'
     | '/checkout/confirmacion'
     | '/marca/$slug'
     | '/producto/$slug'
@@ -180,6 +192,7 @@ export interface RootRouteChildren {
   FavoritosRoute: typeof FavoritosRoute
   LoginRoute: typeof LoginRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  AuthUpdatePasswordRoute: typeof AuthUpdatePasswordRoute
   MarcaSlugRoute: typeof MarcaSlugRoute
   ProductoSlugRoute: typeof ProductoSlugRoute
   ApiPublicWompiWebhookRoute: typeof ApiPublicWompiWebhookRoute
@@ -264,6 +277,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CheckoutConfirmacionRouteImport
       parentRoute: typeof CheckoutRoute
     }
+    '/auth/update-password': {
+      id: '/auth/update-password'
+      path: '/auth/update-password'
+      fullPath: '/auth/update-password'
+      preLoaderRoute: typeof AuthUpdatePasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/wompi-webhook': {
       id: '/api/public/wompi-webhook'
       path: '/api/public/wompi-webhook'
@@ -295,6 +315,7 @@ const rootRouteChildren: RootRouteChildren = {
   FavoritosRoute: FavoritosRoute,
   LoginRoute: LoginRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  AuthUpdatePasswordRoute: AuthUpdatePasswordRoute,
   MarcaSlugRoute: MarcaSlugRoute,
   ProductoSlugRoute: ProductoSlugRoute,
   ApiPublicWompiWebhookRoute: ApiPublicWompiWebhookRoute,
