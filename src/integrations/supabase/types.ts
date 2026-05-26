@@ -202,6 +202,8 @@ export type Database = {
           notes: string
           payment_method: string
           payment_reference: string
+          seller_commission_earned: number
+          seller_id: string | null
           shipping: number
           status: Database["public"]["Enums"]["order_status"]
           subtotal: number
@@ -225,6 +227,8 @@ export type Database = {
           notes?: string
           payment_method?: string
           payment_reference?: string
+          seller_commission_earned?: number
+          seller_id?: string | null
           shipping?: number
           status?: Database["public"]["Enums"]["order_status"]
           subtotal?: number
@@ -248,6 +252,8 @@ export type Database = {
           notes?: string
           payment_method?: string
           payment_reference?: string
+          seller_commission_earned?: number
+          seller_id?: string | null
           shipping?: number
           status?: Database["public"]["Enums"]["order_status"]
           subtotal?: number
@@ -258,7 +264,15 @@ export type Database = {
           wompi_reference?: string
           wompi_transaction_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "orders_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "sellers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       product_images: {
         Row: {
@@ -479,6 +493,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      sellers: {
+        Row: {
+          active: boolean
+          code: string
+          commission_percent: number
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          commission_percent?: number
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          commission_percent?: number
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       site_content: {
         Row: {

@@ -13,6 +13,7 @@ const inputSchema = z.object({
   notes: z.string().max(1000).optional().default(""),
   user_id: z.string().uuid().optional().nullable(),
   coupon_code: z.string().max(64).optional().default(""),
+  seller_code: z.string().max(64).optional().default(""),
   items: z
     .array(
       z.object({
@@ -95,6 +96,24 @@ export const createWompiCheckout = createServerFn({ method: "POST" })
     const amountInCents = total * 100;
     const currency = "COP";
 
+    let sellerId: string | null = null;
+    let sellerCommissionEarned = 0;
+    const rawSellerCode = (data.seller_code ?? "").trim();
+    if (rawSellerCode) {
+      const { data: seller, error: sErr } = await supabaseAdmin
+        .from("sellers")
+        .select("id,commission_percent")
+        .eq("code", rawSellerCode.toUpperCase())
+        .eq("active", true)
+        .maybeSingle();
+      if (sErr) throw new Error(sErr.message);
+      if (!seller) throw new Error("Código de asesor/vendedor no válido o inactivo");
+      
+      sellerId = seller.id;
+      const commissionableAmount = Math.max(0, subtotal - discount);
+      sellerCommissionEarned = Math.round(commissionableAmount * (Number(seller.commission_percent) / 100));
+    }
+
     const { data: order, error: oErr } = await supabaseAdmin
       .from("orders")
       .insert({
@@ -111,6 +130,8 @@ export const createWompiCheckout = createServerFn({ method: "POST" })
         payment_method: "wompi",
         coupon_code: appliedCode,
         discount,
+        seller_id: sellerId,
+        seller_commission_earned: sellerCommissionEarned,
       })
       .select("id")
       .single();

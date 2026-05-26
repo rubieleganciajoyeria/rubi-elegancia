@@ -1,5 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { BRANDS } from "@/data/brands";
 import { ArrowRight, ShieldCheck, Sparkles, Gem, Watch, ShoppingBag } from "lucide-react";
 import catWatches from "@/assets/cat-watches.jpg";
 import catJewelry from "@/assets/cat-jewelry.jpg";
@@ -115,6 +117,10 @@ function Home() {
         </div>
       </section>
 
+      {/* Nuestras Marcas */}
+      <div className="gold-divider max-w-7xl mx-auto px-6 md:px-10" />
+      <BrandsSection />
+
       {/* Beneficios */}
       <section className="border-y border-border/60 bg-secondary/40">
         <div className="mx-auto grid max-w-7xl gap-12 px-6 py-20 md:grid-cols-3 md:px-10">
@@ -124,6 +130,84 @@ function Home() {
         </div>
       </section>
     </div>
+  );
+}
+
+function BrandsSection() {
+  const [activeTab, setActiveTab] = useState<"swiss" | "fashion" | "jewelry">("swiss");
+
+  const filteredBrands = BRANDS.filter((b) => b.category === activeTab);
+
+  return (
+    <section className="mx-auto max-w-7xl px-6 py-24 md:px-10 md:py-32">
+      <div className="text-center">
+        <h2 className="font-serif text-3xl md:text-5xl uppercase tracking-[0.25em] text-foreground">
+          Nuestras Marcas
+        </h2>
+        <p className="mt-4 text-sm text-muted-foreground max-w-xl mx-auto font-light leading-relaxed">
+          Te ofrecemos gran variedad de marcas y el mejor respaldo del mercado.
+        </p>
+      </div>
+
+      {/* Tabs / Categorías */}
+      <div className="mt-10 flex flex-wrap justify-center gap-3">
+        <button
+          onClick={() => setActiveTab("swiss")}
+          className={`px-6 py-2.5 text-[10px] uppercase tracking-[0.2em] font-semibold transition-all duration-300 ${
+            activeTab === "swiss"
+              ? "bg-[#2d3a43] text-primary-foreground rounded-full shadow-sm"
+              : "border border-foreground/30 hover:border-wine hover:text-wine rounded-full text-foreground/80 bg-background"
+          }`}
+        >
+          Marcas Suizas
+        </button>
+        <button
+          onClick={() => setActiveTab("fashion")}
+          className={`px-6 py-2.5 text-[10px] uppercase tracking-[0.2em] font-semibold transition-all duration-300 ${
+            activeTab === "fashion"
+              ? "bg-[#2d3a43] text-primary-foreground rounded-full shadow-sm"
+              : "border border-foreground/30 hover:border-wine hover:text-wine rounded-full text-foreground/80 bg-background"
+          }`}
+        >
+          Marcas Fashion
+        </button>
+        <button
+          onClick={() => setActiveTab("jewelry")}
+          className={`px-6 py-2.5 text-[10px] uppercase tracking-[0.2em] font-semibold transition-all duration-300 ${
+            activeTab === "jewelry"
+              ? "bg-[#2d3a43] text-primary-foreground rounded-full shadow-sm"
+              : "border border-foreground/30 hover:border-wine hover:text-wine rounded-full text-foreground/80 bg-background"
+          }`}
+        >
+          Joyería
+        </button>
+      </div>
+
+      {/* Grid de Logos */}
+      <div className="mt-12 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 justify-center max-w-5xl mx-auto">
+        {filteredBrands.map((b) => (
+          <Link
+            key={b.slug}
+            to="/marca/$slug"
+            params={{ slug: b.slug }}
+            className="group relative flex flex-col items-center justify-center border border-foreground/10 bg-background px-6 py-8 text-center transition-all duration-300 hover:-translate-y-1 hover:border-wine/40 hover:shadow-md aspect-[1.6/1]"
+          >
+            <span className="font-serif text-base tracking-[0.18em] text-foreground/90 transition-colors group-hover:text-wine uppercase block leading-none font-medium">
+              {b.name}
+            </span>
+            {b.logoSubtext && (
+              <span className="mt-2 block text-[8px] uppercase tracking-[0.2em] text-muted-foreground/80 leading-none">
+                {b.logoSubtext}
+              </span>
+            )}
+            
+            <span className="absolute bottom-2 right-3 text-[8px] uppercase tracking-wider text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 font-semibold">
+              Historia →
+            </span>
+          </Link>
+        ))}
+      </div>
+    </section>
   );
 }
 

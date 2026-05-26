@@ -6,6 +6,7 @@ import { formatCOP } from "@/data/products";
 import { useServerFn } from "@tanstack/react-start";
 import { createWompiCheckout } from "@/lib/wompi.functions";
 import { validateCoupon } from "@/lib/coupons.functions";
+import { validateSellerCode } from "@/lib/sellers.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { getGlobalSettings } from "@/lib/site-content.functions";
@@ -54,9 +55,36 @@ function CheckoutPage() {
   const [coupon, setCoupon] = useState<{ code: string; discount: number } | null>(null);
   const [couponError, setCouponError] = useState<string | null>(null);
   const [couponLoading, setCouponLoading] = useState(false);
+  const [sellerInput, setSellerInput] = useState("");
+  const [sellerName, setSellerName] = useState<string | null>(null);
+  const [sellerError, setSellerError] = useState<string | null>(null);
+  const [sellerLoading, setSellerLoading] = useState(false);
+  const validateSeller = useServerFn(validateSellerCode);
   const shipping = subtotal > 0 && subtotal < 500000 ? 25000 : 0;
   const discount = coupon?.discount ?? 0;
   const total = Math.max(0, subtotal + shipping - discount);
+
+  const handleValidateSeller = async () => {
+    const code = sellerInput.trim();
+    if (!code) return;
+    setSellerLoading(true);
+    setSellerError(null);
+    setSellerName(null);
+    try {
+      const res = await validateSeller({ data: { code } });
+      if (!res.valid) {
+        setSellerName(null);
+        setSellerError(res.reason || "Código de asesor no válido");
+      } else {
+        setSellerName(res.name ?? "Asesor");
+        setSellerError(null);
+      }
+    } catch (e: any) {
+      setSellerError(e?.message ?? "Código de asesor no válido");
+    } finally {
+      setSellerLoading(false);
+    }
+  };
 
   const applyCoupon = async () => {
     const code = couponInput.trim();
@@ -97,6 +125,7 @@ function CheckoutPage() {
           notes: form.notes,
           user_id: u.user?.id ?? null,
           coupon_code: coupon?.code ?? "",
+          seller_code: sellerName ? sellerInput : "",
           items: items.map((i) => ({ product_id: i.id, qty: i.qty })),
         },
       });
@@ -187,6 +216,37 @@ function CheckoutPage() {
                   rows={3}
                   className="mt-2 w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm outline-none focus:border-wine"
                 />
+              </div>
+              <div className="mt-4">
+                <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+                  ¿Te atendió un asesor? (Opcional)
+                </label>
+                <div className="mt-2 flex gap-2">
+                  <input
+                    value={sellerInput}
+                    onChange={(e) => {
+                      setSellerInput(e.target.value.toUpperCase());
+                      setSellerName(null);
+                      setSellerError(null);
+                    }}
+                    placeholder="Código de asesor (Ej: MARIO)"
+                    className="flex-1 border border-foreground/20 bg-transparent px-3 py-2 text-sm uppercase outline-none focus:border-wine"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleValidateSeller}
+                    disabled={sellerLoading || !sellerInput.trim()}
+                    className="border border-foreground/30 px-4 py-2 text-[11px] uppercase tracking-[0.2em] hover:border-wine hover:text-wine disabled:opacity-50"
+                  >
+                    {sellerLoading ? "..." : "Validar"}
+                  </button>
+                </div>
+                {sellerName && (
+                  <p className="mt-2 text-xs text-wine font-medium">
+                    ✓ Asesor seleccionado: <span className="uppercase font-semibold">{sellerName}</span>
+                  </p>
+                )}
+                {sellerError && <p className="mt-2 text-xs text-destructive">{sellerError}</p>}
               </div>
             </div>
           </section>

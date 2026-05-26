@@ -18,6 +18,7 @@ import { Route as CatalogoRouteImport } from './routes/catalogo'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProductoSlugRouteImport } from './routes/producto.$slug'
+import { Route as MarcaSlugRouteImport } from './routes/marca.$slug'
 import { Route as CheckoutConfirmacionRouteImport } from './routes/checkout.confirmacion'
 import { Route as ApiPublicWompiWebhookRouteImport } from './routes/api/public/wompi-webhook'
 
@@ -66,6 +67,11 @@ const ProductoSlugRoute = ProductoSlugRouteImport.update({
   path: '/producto/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MarcaSlugRoute = MarcaSlugRouteImport.update({
+  id: '/marca/$slug',
+  path: '/marca/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CheckoutConfirmacionRoute = CheckoutConfirmacionRouteImport.update({
   id: '/confirmacion',
   path: '/confirmacion',
@@ -87,6 +93,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/checkout/confirmacion': typeof CheckoutConfirmacionRoute
+  '/marca/$slug': typeof MarcaSlugRoute
   '/producto/$slug': typeof ProductoSlugRoute
   '/api/public/wompi-webhook': typeof ApiPublicWompiWebhookRoute
 }
@@ -100,6 +107,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/checkout/confirmacion': typeof CheckoutConfirmacionRoute
+  '/marca/$slug': typeof MarcaSlugRoute
   '/producto/$slug': typeof ProductoSlugRoute
   '/api/public/wompi-webhook': typeof ApiPublicWompiWebhookRoute
 }
@@ -114,6 +122,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/checkout/confirmacion': typeof CheckoutConfirmacionRoute
+  '/marca/$slug': typeof MarcaSlugRoute
   '/producto/$slug': typeof ProductoSlugRoute
   '/api/public/wompi-webhook': typeof ApiPublicWompiWebhookRoute
 }
@@ -129,6 +138,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/sitemap.xml'
     | '/checkout/confirmacion'
+    | '/marca/$slug'
     | '/producto/$slug'
     | '/api/public/wompi-webhook'
   fileRoutesByTo: FileRoutesByTo
@@ -142,6 +152,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/sitemap.xml'
     | '/checkout/confirmacion'
+    | '/marca/$slug'
     | '/producto/$slug'
     | '/api/public/wompi-webhook'
   id:
@@ -155,6 +166,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/sitemap.xml'
     | '/checkout/confirmacion'
+    | '/marca/$slug'
     | '/producto/$slug'
     | '/api/public/wompi-webhook'
   fileRoutesById: FileRoutesById
@@ -168,6 +180,7 @@ export interface RootRouteChildren {
   FavoritosRoute: typeof FavoritosRoute
   LoginRoute: typeof LoginRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  MarcaSlugRoute: typeof MarcaSlugRoute
   ProductoSlugRoute: typeof ProductoSlugRoute
   ApiPublicWompiWebhookRoute: typeof ApiPublicWompiWebhookRoute
 }
@@ -237,6 +250,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProductoSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/marca/$slug': {
+      id: '/marca/$slug'
+      path: '/marca/$slug'
+      fullPath: '/marca/$slug'
+      preLoaderRoute: typeof MarcaSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/checkout/confirmacion': {
       id: '/checkout/confirmacion'
       path: '/confirmacion'
@@ -275,6 +295,7 @@ const rootRouteChildren: RootRouteChildren = {
   FavoritosRoute: FavoritosRoute,
   LoginRoute: LoginRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  MarcaSlugRoute: MarcaSlugRoute,
   ProductoSlugRoute: ProductoSlugRoute,
   ApiPublicWompiWebhookRoute: ApiPublicWompiWebhookRoute,
 }

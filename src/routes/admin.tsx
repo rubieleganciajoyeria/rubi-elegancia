@@ -34,6 +34,11 @@ import {
   deleteCoupon,
 } from "@/lib/coupons.functions";
 import {
+  adminListSellers,
+  upsertSeller,
+  deleteSeller,
+} from "@/lib/sellers.functions";
+import {
   adminListOrders,
   updateOrderStatus,
   deleteOrder,
@@ -183,6 +188,10 @@ function AdminPage() {
       <div className="gold-divider my-12" />
 
       <CouponsAdmin />
+
+      <div className="gold-divider my-12" />
+
+      <SellersAdmin />
 
       <div className="gold-divider my-12" />
 
@@ -584,12 +593,15 @@ function OrdersAdmin() {
   const list = useServerFn(adminListOrders);
   const upd = useServerFn(updateOrderStatus);
   const del = useServerFn(deleteOrder);
+  const listSells = useServerFn(adminListSellers);
   const qc = useQueryClient();
   const [expanded, setExpanded] = useState<string | null>(null);
   const [refFilter, setRefFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
   const ordersQ = useQuery({ queryKey: ["admin", "orders"], queryFn: () => list() });
+  const sellersQ = useQuery({ queryKey: ["admin", "sellers"], queryFn: () => listSells() });
+  const sellersMap = new Map((sellersQ.data ?? []).map((s: any) => [s.id, s]));
 
   const updM = useMutation({
     mutationFn: (v: { id: string; status: (typeof ORDER_STATUSES)[number] }) =>
@@ -673,6 +685,11 @@ function OrdersAdmin() {
                       <div className="font-medium">{o.customer_name}</div>
                       <div className="text-xs text-muted-foreground">{o.customer_email} · {o.customer_phone}</div>
                       <div className="text-xs text-muted-foreground">{o.city} — {o.address}</div>
+                      {o.seller_id && (
+                        <div className="mt-1 text-xs text-wine font-medium">
+                          Asesor: <span className="uppercase font-semibold">{sellersMap.get(o.seller_id)?.name || "Cargando..."}</span> ({sellersMap.get(o.seller_id)?.code})
+                        </div>
+                      )}
                     </td>
                     <td className="p-3 text-xs">
                       {o.wompi_reference ? (
@@ -734,6 +751,14 @@ function OrdersAdmin() {
                           ))}
                           <div className="text-xs text-muted-foreground">
                             Subtotal: {formatCOP(o.subtotal)} · Envío: {formatCOP(o.shipping)} · Notas: {o.notes || "—"}
+                            {o.seller_id && (
+                              <>
+                                {" · "}
+                                <span className="text-wine font-medium">
+                                  Comisión Asesor: {formatCOP(o.seller_commission_earned)}
+                                </span>
+                              </>
+                            )}
                           </div>
                           <div className="mt-2 border-t border-border/60 pt-3">
                             <div className="mb-2 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
@@ -1904,6 +1929,235 @@ function CouponEditor({
             <button
               type="submit" disabled={saving}
               className="bg-wine px-6 py-3 text-[11px] uppercase tracking-[0.25em] text-primary-foreground hover:opacity-90 disabled:opacity-50"
+            >
+              {saving ? "Guardando…" : "Guardar"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function SellersAdmin() {
+  const list = useServerFn(adminListSellers);
+  const save = useServerFn(upsertSeller);
+  const del = useServerFn(deleteSeller);
+  const listOrders = useServerFn(adminListOrders);
+  const qc = useQueryClient();
+  
+  const q = useQuery({ queryKey: ["admin", "sellers"], queryFn: () => list() });
+  const ordersQ = useQuery({ queryKey: ["admin", "orders"], queryFn: () => listOrders() });
+  
+  const [editing, setEditing] = useState<any | null>(null);
+
+  const saveM = useMutation({
+    mutationFn: (v: any) => save({ data: v }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "sellers"] });
+      setEditing(null);
+    },
+  });
+  const delM = useMutation({
+    mutationFn: (id: string) => del({ data: { id } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "sellers"] }),
+  });
+
+  const getSellerMetrics = (sellerId: string) => {
+    const paidOrCompleted = (s: string) =>
+      s === "paid" || s === "shipped" || s === "delivered" || s === "confirmed";
+    const sellerOrders = (ordersQ.data ?? []).filter(
+      (o: any) => o.seller_id === sellerId && paidOrCompleted(o.status)
+    );
+    const count = sellerOrders.length;
+    const totalAmount = sellerOrders.reduce((sum: number, o: any) => sum + Number(o.total ?? 0), 0);
+    const commission = sellerOrders.reduce((sum: number, o: any) => sum + Number(o.seller_commission_earned ?? 0), 0);
+    return { count, totalAmount, commission };
+  };
+
+  return (
+    <section>
+      <div className="flex items-end justify-between">
+        <div>
+          <h2 className="font-serif text-2xl">Asesores / Vendedores</h2>
+          <p className="text-xs text-muted-foreground mt-1">
+            Gestiona a tus asesores y haz seguimiento de sus ventas y comisiones generadas.
+          </p>
+        </div>
+        <button
+          onClick={() => setEditing({ active: true, commission_percent: 5 })}
+          className="inline-flex items-center gap-2 bg-wine px-4 py-2 text-[11px] uppercase tracking-[0.25em] text-primary-foreground hover:opacity-90"
+        >
+          <Plus className="h-4 w-4" /> Nuevo Asesor
+        </button>
+      </div>
+
+      <div className="mt-6 overflow-x-auto border border-border/60">
+        <table className="w-full text-sm">
+          <thead className="bg-secondary/50 text-left text-[11px] uppercase tracking-[0.15em] text-muted-foreground">
+            <tr>
+              <th className="p-3">Nombre</th>
+              <th className="p-3">Código</th>
+              <th className="p-3">Comisión (%)</th>
+              <th className="p-3">Ventas</th>
+              <th className="p-3">Total Vendido</th>
+              <th className="p-3">Comisión Acumulada</th>
+              <th className="p-3">Estado</th>
+              <th className="p-3 text-right">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(q.data ?? []).map((s: any) => {
+              const metrics = getSellerMetrics(s.id);
+              return (
+                <tr key={s.id} className="border-t border-border/60">
+                  <td className="p-3 font-medium">{s.name}</td>
+                  <td className="p-3 font-mono text-xs text-wine">{s.code}</td>
+                  <td className="p-3">{s.commission_percent}%</td>
+                  <td className="p-3 text-muted-foreground">{metrics.count}</td>
+                  <td className="p-3 font-medium">{formatCOP(metrics.totalAmount)}</td>
+                  <td className="p-3 text-wine font-medium">{formatCOP(metrics.commission)}</td>
+                  <td className="p-3">
+                    <span className={`px-2 py-1 text-[10px] uppercase tracking-wider ${s.active ? "bg-secondary text-foreground" : "bg-muted text-muted-foreground"}`}>
+                      {s.active ? "Activo" : "Inactivo"}
+                    </span>
+                  </td>
+                  <td className="p-3 text-right">
+                    <button onClick={() => setEditing(s)} className="mr-2 p-2 hover:text-wine" aria-label="Editar">
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => { if (confirm(`¿Eliminar al asesor ${s.name}?`)) delM.mutate(s.id); }}
+                      className="p-2 hover:text-wine"
+                      aria-label="Eliminar"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+            {(q.data ?? []).length === 0 && (
+              <tr><td colSpan={8} className="p-6 text-center text-sm text-muted-foreground">No hay asesores creados aún.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {editing && (
+        <SellerEditor
+          initial={editing}
+          onCancel={() => setEditing(null)}
+          onSubmit={(v) => saveM.mutate(v)}
+          saving={saveM.isPending}
+          error={saveM.error instanceof Error ? saveM.error.message : null}
+        />
+      )}
+    </section>
+  );
+}
+
+function SellerEditor({
+  initial, onCancel, onSubmit, saving, error,
+}: {
+  initial: any;
+  onCancel: () => void;
+  onSubmit: (v: any) => void;
+  saving: boolean;
+  error: string | null;
+}) {
+  const [v, setV] = useState({
+    id: initial.id,
+    name: initial.name ?? "",
+    code: initial.code ?? "",
+    commission_percent: initial.commission_percent ?? 5,
+    active: initial.active ?? true,
+  });
+
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, []);
+
+  const set = <K extends keyof typeof v>(k: K, val: (typeof v)[K]) => setV({ ...v, [k]: val });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4">
+      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto bg-background p-8 shadow-2xl">
+        <div className="flex items-start justify-between">
+          <h3 className="font-serif text-2xl">{v.id ? "Editar asesor" : "Nuevo asesor"}</h3>
+          <button onClick={onCancel} aria-label="Cerrar" className="p-2 hover:text-wine">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            onSubmit({
+              ...v,
+              code: v.code.trim().toUpperCase(),
+              commission_percent: Number(v.commission_percent) || 0,
+            });
+          }}
+          className="mt-6 space-y-4"
+        >
+          <div>
+            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Nombre completo</label>
+            <input
+              value={v.name}
+              onChange={(e) => set("name", e.target.value)}
+              required
+              className="mt-2 w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm outline-none focus:border-wine"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Código de Asesor</label>
+            <input
+              value={v.code}
+              onChange={(e) => set("code", e.target.value.toUpperCase())}
+              required
+              placeholder="Ej: MARIO, LORENA05"
+              className="mt-2 w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm uppercase outline-none focus:border-wine"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Porcentaje de Comisión (%)</label>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              step={0.1}
+              value={v.commission_percent}
+              onChange={(e) => set("commission_percent", e.target.value)}
+              required
+              className="mt-2 w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm outline-none focus:border-wine"
+            />
+          </div>
+
+          <label className="flex items-center gap-2 py-2 text-sm">
+            <input
+              type="checkbox"
+              checked={v.active}
+              onChange={(e) => set("active", e.target.checked)}
+            />
+            Asesor activo (puede recibir ventas)
+          </label>
+
+          {error && <p className="text-sm text-wine">{error}</p>}
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button type="button" onClick={onCancel} className="px-4 py-2 text-[11px] uppercase tracking-[0.25em] text-muted-foreground hover:text-wine">
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="bg-wine px-6 py-2 text-[11px] uppercase tracking-[0.25em] text-primary-foreground hover:opacity-90 disabled:opacity-50"
             >
               {saving ? "Guardando…" : "Guardar"}
             </button>
