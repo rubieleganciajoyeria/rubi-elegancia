@@ -75,36 +75,79 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   );
 }
 
+const SITE_URL = "https://rubi-joyeria.com";
+const OG_IMAGE = "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/9e65ee21-1732-4909-82a1-53c0ff79676a/id-preview-09a18a16--6a50b2d9-6abb-4961-b9b5-4f6201a1689c.lovable.app-1779545011696.png";
+
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Rubí — Relojería & Joyería | Elegancia que trasciende" },
-      { name: "description", content: "Relojería y joyería premium. Piezas seleccionadas que celebran los momentos importantes. Envío y garantía en todo el país." },
-      { name: "author", content: "Rubí" },
+      { name: "description", content: "Relojería y joyería premium en Colombia. Relojes suizos, joyas de oro y plata. Piezas únicas para momentos que perduran. Envío a todo el país con garantía." },
+      { name: "author", content: "Rubí Relojería & Joyería" },
+      { name: "robots", content: "index, follow" },
+      { name: "language", content: "Spanish" },
+      { name: "geo.region", content: "CO" },
+      { name: "geo.placename", content: "Colombia" },
+      // Open Graph
+      { property: "og:site_name", content: "Rubí Relojería & Joyería" },
       { property: "og:title", content: "Rubí — Relojería & Joyería | Elegancia que trasciende" },
-      { property: "og:description", content: "Relojería y joyería premium. Piezas seleccionadas que celebran los momentos importantes. Envío y garantía en todo el país." },
+      { property: "og:description", content: "Relojería y joyería premium en Colombia. Relojes suizos, joyas de oro y plata. Piezas únicas para momentos que perduran." },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
-      { name: "twitter:title", content: "Rubí — Relojería & Joyería | Elegancia que trasciende" },
-      { name: "twitter:description", content: "Relojería y joyería premium. Piezas seleccionadas que celebran los momentos importantes. Envío y garantía en todo el país." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/9e65ee21-1732-4909-82a1-53c0ff79676a/id-preview-09a18a16--6a50b2d9-6abb-4961-b9b5-4f6201a1689c.lovable.app-1779545011696.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/9e65ee21-1732-4909-82a1-53c0ff79676a/id-preview-09a18a16--6a50b2d9-6abb-4961-b9b5-4f6201a1689c.lovable.app-1779545011696.png" },
+      { property: "og:url", content: SITE_URL },
+      { property: "og:locale", content: "es_CO" },
+      { property: "og:image", content: OG_IMAGE },
+      { property: "og:image:width", content: "1200" },
+      { property: "og:image:height", content: "630" },
+      // Twitter Card
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "Rubí — Relojería & Joyería" },
+      { name: "twitter:description", content: "Relojería y joyería premium en Colombia. Relojes suizos, joyas de oro y plata." },
+      { name: "twitter:image", content: OG_IMAGE },
     ],
     links: [
-      {
-        rel: "stylesheet",
-        href: appCss,
-      },
+      { rel: "stylesheet", href: appCss },
       { rel: "icon", type: "image/png", href: "/favicon.png" },
       { rel: "apple-touch-icon", href: "/favicon.png" },
+      { rel: "canonical", href: SITE_URL },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "" },
       {
         rel: "stylesheet",
         href: "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap",
+      },
+    ],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@graph": [
+            {
+              "@type": "Organization",
+              "@id": `${SITE_URL}/#organization`,
+              name: "Rubí Relojería & Joyería",
+              url: SITE_URL,
+              logo: `${SITE_URL}/favicon.png`,
+              description: "Relojería y joyería premium en Colombia. Relojes suizos, joyas de oro y plata.",
+              address: { "@type": "PostalAddress", addressCountry: "CO" },
+              contactPoint: { "@type": "ContactPoint", contactType: "customer support", availableLanguage: "Spanish" },
+            },
+            {
+              "@type": "WebSite",
+              "@id": `${SITE_URL}/#website`,
+              url: SITE_URL,
+              name: "Rubí Relojería & Joyería",
+              publisher: { "@id": `${SITE_URL}/#organization` },
+              potentialAction: {
+                "@type": "SearchAction",
+                target: { "@type": "EntryPoint", urlTemplate: `${SITE_URL}/catalogo?q={search_term_string}` },
+                "query-input": "required name=search_term_string",
+              },
+            },
+          ],
+        }),
       },
     ],
   }),
@@ -116,7 +159,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="es">
       <head>
         <HeadContent />
       </head>

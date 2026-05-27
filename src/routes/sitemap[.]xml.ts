@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
-const BASE_URL = "https://ruby-sparkle-shop.lovable.app";
+const BASE_URL = "https://rubi-joyeria.com";
 
 interface SitemapEntry {
   path: string;
@@ -35,6 +35,16 @@ export const Route = createFileRoute("/sitemap.xml")({
             changefreq: "weekly",
             priority: "0.8",
           });
+        }
+
+        // Páginas de marcas
+        const brandSlugs = [
+          "rolex", "omega", "tag-heuer", "tissot", "casio", "citizen",
+          "guess", "fossil", "tous", "pandora", "swarovski",
+          "tiffany", "cartier", "bulgari", "chopard", "zenith", "longines",
+        ];
+        for (const slug of brandSlugs) {
+          entries.push({ path: `/marca/${slug}`, changefreq: "monthly", priority: "0.6" });
         }
 
         const urls = entries.map((e) =>

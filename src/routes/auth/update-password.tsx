@@ -18,9 +18,24 @@ function UpdatePasswordPage() {
   const [ready, setReady] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  // Supabase redirige aquí con un token en la URL hash.
-  // Necesitamos esperar a que el cliente de Supabase lo procese.
   useEffect(() => {
+    // 1. Check for error in hash (e.g., link expired)
+    const hash = window.location.hash;
+    const params = new URLSearchParams(hash.substring(1));
+    const error_description = params.get("error_description");
+    if (error_description) {
+      setError(decodeURIComponent(error_description.replace(/\+/g, " ")));
+      return;
+    }
+
+    // 2. Check if we already have a session for recovery
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) {
+        setReady(true);
+      }
+    });
+
+    // 3. Listen for changes in case it triggers after mount
     const { data: listener } = supabase.auth.onAuthStateChange((event) => {
       if (event === "PASSWORD_RECOVERY") {
         setReady(true);
@@ -61,7 +76,13 @@ function UpdatePasswordPage() {
       <h1 className="mt-3 font-serif text-4xl">Nueva contraseña</h1>
       <p className="mt-2 text-sm text-muted-foreground">Ingresa tu nueva contraseña para continuar.</p>
 
-      {success ? (
+      {error ? (
+        <div className="mt-10">
+          <div className="border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-800">
+            {error}
+          </div>
+        </div>
+      ) : success ? (
         <div className="mt-10 space-y-4">
           <div className="border border-green-200 bg-green-50 px-4 py-4 text-sm text-green-800">
             ✓ ¡Contraseña actualizada con éxito! Serás redirigido al inicio de sesión en unos segundos.
@@ -133,7 +154,7 @@ function UpdatePasswordPage() {
         </form>
       )}
 
-      {!success && (
+      {!success && !error && (
         <Link
           to="/login"
           className="mt-6 text-center text-[11px] uppercase tracking-[0.25em] text-muted-foreground hover:text-wine"

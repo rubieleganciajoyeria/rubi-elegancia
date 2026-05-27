@@ -9,16 +9,40 @@ import { ArrowLeft, Sparkles, MapPin, Phone } from "lucide-react";
 export const Route = createFileRoute("/marca/$slug")({
   head: ({ params }) => {
     const brand = BRANDS.find((b) => b.slug === params.slug);
+    const SITE_URL = "https://rubi-joyeria.com";
+    const title = brand ? `${brand.name} — Historia y Colección | Rubí` : "Marca — Rubí";
+    const description = brand
+      ? `Conoce la historia de ${brand.name} y explora su colección exclusiva disponible en Rubí Relojería & Joyería. ${brand.history.slice(0, 120)}...`
+      : "Descubre nuestras marcas de lujo en Rubí.";
+    const canonical = `${SITE_URL}/marca/${params.slug}`;
     return {
       meta: [
-        { title: brand ? `${brand.name} — Historia y Colección` : "Marca — Rubí" },
-        {
-          name: "description",
-          content: brand
-            ? `Descubre la historia de ${brand.name} y su selecta colección disponible en Rubí Relojería & Joyería.`
-            : "Descubre nuestras marcas de lujo.",
-        },
+        { title },
+        { name: "description", content: description },
+        { name: "robots", content: "index, follow" },
+        { property: "og:title", content: title },
+        { property: "og:description", content: description },
+        { property: "og:type", content: "website" },
+        { property: "og:url", content: canonical },
+        { property: "og:locale", content: "es_CO" },
+        { property: "og:site_name", content: "Rubí Relojería & Joyería" },
       ],
+      links: [
+        { rel: "canonical", href: canonical },
+      ],
+      scripts: brand ? [
+        {
+          type: "application/ld+json",
+          children: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Brand",
+            name: brand.name,
+            url: canonical,
+            description: description,
+            logo: `${SITE_URL}/favicon.png`,
+          }),
+        },
+      ] : [],
     };
   },
   component: BrandDetailPage,

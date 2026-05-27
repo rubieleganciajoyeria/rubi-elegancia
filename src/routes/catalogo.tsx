@@ -34,13 +34,34 @@ export const Route = createFileRoute("/catalogo")({
   }),
   head: () => ({
     meta: [
-      { title: "Catálogo — Rubí" },
-      { name: "description", content: "Explora la colección completa de relojería y joyería Rubí." },
-      { property: "og:title", content: "Catálogo — Rubí" },
-      { property: "og:description", content: "Explora la colección completa de relojería y joyería Rubí." },
-      { property: "og:url", content: "/catalogo" },
+      { title: "Catálogo de Relojes y Joyas | Rubí Relojería & Joyería" },
+      { name: "description", content: "Explora nuestra colección completa de relojes suizos, joyas de oro, plata y piezas de moda. Todas las marcas: Rolex, Omega, Tissot, Pandora y más." },
+      { name: "robots", content: "index, follow" },
+      { property: "og:title", content: "Catálogo de Relojes y Joyas | Rubí" },
+      { property: "og:description", content: "Explora nuestra colección completa de relojes suizos, joyas de oro, plata y piezas de moda premium." },
+      { property: "og:url", content: "https://rubi-joyeria.com/catalogo" },
+      { property: "og:type", content: "website" },
+      { property: "og:locale", content: "es_CO" },
+      { property: "og:site_name", content: "Rubí Relojería & Joyería" },
     ],
-    links: [{ rel: "canonical", href: "/catalogo" }],
+    links: [{ rel: "canonical", href: "https://rubi-joyeria.com/catalogo" }],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "CollectionPage",
+          name: "Catálogo de Relojes y Joyas",
+          url: "https://rubi-joyeria.com/catalogo",
+          description: "Colección completa de relojes suizos y joyas de lujo disponibles en Rubí.",
+          publisher: {
+            "@type": "Organization",
+            name: "Rubí Relojería & Joyería",
+            url: "https://rubi-joyeria.com",
+          },
+        }),
+      },
+    ],
   }),
   loader: async ({ context }) => {
     await Promise.all([

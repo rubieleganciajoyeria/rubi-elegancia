@@ -33,16 +33,24 @@ export const Route = createFileRoute("/producto/$slug")({
   head: ({ params, loaderData }) => ({
     meta: loaderData
       ? [
-          { title: `${loaderData.product.name} — Rubí` },
-          { name: "description", content: loaderData.product.description },
-          { property: "og:title", content: `${loaderData.product.name} — Rubí` },
+          { title: `${loaderData.product.name} — Rubí Relojería & Joyería` },
+          { name: "description", content: `${loaderData.product.description} Disponible en Rubí Relojería & Joyería Colombia.` },
+          { name: "robots", content: "index, follow" },
+          { property: "og:title", content: `${loaderData.product.name} | Rubí` },
           { property: "og:description", content: loaderData.product.description },
           { property: "og:image", content: loaderData.product.image },
+          { property: "og:image:alt", content: loaderData.product.name },
           { property: "og:type", content: "product" },
-          { property: "og:url", content: `/producto/${params.slug}` },
+          { property: "og:url", content: `https://rubi-joyeria.com/producto/${params.slug}` },
+          { property: "og:locale", content: "es_CO" },
+          { property: "og:site_name", content: "Rubí Relojería & Joyería" },
+          { name: "twitter:card", content: "summary_large_image" },
+          { name: "twitter:title", content: `${loaderData.product.name} | Rubí` },
+          { name: "twitter:description", content: loaderData.product.description },
+          { name: "twitter:image", content: loaderData.product.image },
         ]
       : [],
-    links: [{ rel: "canonical", href: `/producto/${params.slug}` }],
+    links: [{ rel: "canonical", href: `https://rubi-joyeria.com/producto/${params.slug}` }],
     scripts: loaderData
       ? [
           {
