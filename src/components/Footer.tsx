@@ -4,8 +4,8 @@ export function Footer() {
       <div className="mx-auto max-w-7xl px-6 py-16 md:px-10">
         <div className="grid gap-12 md:grid-cols-4">
           <div>
-            <div className="font-serif text-2xl tracking-[0.3em]">RUBÍ</div>
-            <p className="mt-4 max-w-xs text-sm leading-relaxed text-muted-foreground">
+            <img src="/src/assets/rubi-logo.png" alt="Rubí Relojería & Joyería" className="h-[45px] w-auto mb-4" />
+            <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">
               Elegancia que trasciende. Relojería y joyería seleccionada para los momentos que importan.
             </p>
           </div>
