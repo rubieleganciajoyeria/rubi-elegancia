@@ -77,11 +77,18 @@ function Catalogo() {
   const navigate = useNavigate({ from: "/catalogo" });
   const { data: products } = useSuspenseQuery(productsQueryOptions);
   const { data: categories } = useSuspenseQuery(categoriesQueryOptions);
-  const brands = useMemo(() => Array.from(new Set(products.map((p) => p.brand))), [products]);
-  const materials = useMemo(() => Array.from(new Set(products.map((p) => p.material))), [products]);
+  const brands = useMemo(() => Array.from(new Set(products.map((p) => p.brand).filter(Boolean) as string[])), [products]);
+  const materials = useMemo(() => Array.from(new Set(products.map((p) => p.material).filter(Boolean) as string[])), [products]);
+  const colors = useMemo(() => Array.from(new Set(products.map((p) => p.color).filter(Boolean) as string[])), [products]);
+  const usageTypes = useMemo(() => Array.from(new Set(products.map((p) => p.usageType).filter(Boolean) as string[])), [products]);
+  const genders = useMemo(() => Array.from(new Set(products.map((p) => p.gender).filter(Boolean) as string[])), [products]);
+
   const [category, setCategory] = useState<string>(cat ?? "todos");
   const [brand, setBrand] = useState<string>("todas");
   const [material, setMaterial] = useState<string>("todos");
+  const [color, setColor] = useState<string>("todos");
+  const [usageType, setUsageType] = useState<string>("todos");
+  const [gender, setGender] = useState<string>("todos");
   const [maxPrice, setMaxPrice] = useState<number>(3000000);
   const [query, setQuery] = useState<string>(q ?? "");
 
@@ -101,10 +108,13 @@ function Catalogo() {
         if (category !== "todos" && p.category !== category) return false;
         if (brand !== "todas" && p.brand !== brand) return false;
         if (material !== "todos" && p.material !== material) return false;
+        if (color !== "todos" && p.color !== color) return false;
+        if (usageType !== "todos" && p.usageType !== usageType) return false;
+        if (gender !== "todos" && p.gender !== gender) return false;
         const price = p.discountPrice ?? p.price;
         if (price > maxPrice) return false;
         if (term.length > 0) {
-          const hay = `${p.name} ${p.brand} ${p.material} ${p.categoryLabel ?? ""}`.toLowerCase();
+          const hay = `${p.name} ${p.brand} ${p.material ?? ""} ${p.color ?? ""} ${p.usageType ?? ""} ${p.gender ?? ""} ${p.categoryLabel ?? ""}`.toLowerCase();
           if (!hay.includes(term)) return false;
         }
         return true;
@@ -119,7 +129,7 @@ function Catalogo() {
       }
       return sorted;
     },
-    [products, category, brand, material, maxPrice, q, currentSort],
+    [products, category, brand, material, color, usageType, gender, maxPrice, q, currentSort],
   );
 
   return (
@@ -212,6 +222,39 @@ function Catalogo() {
             {materials.map((m) => (
               <FilterOption key={m} active={material === m} onClick={() => setMaterial(m)}>
                 {m}
+              </FilterOption>
+            ))}
+          </FilterGroup>
+
+          <FilterGroup label="Color">
+            <FilterOption active={color === "todos"} onClick={() => setColor("todos")}>
+              Todos
+            </FilterOption>
+            {colors.map((c) => (
+              <FilterOption key={c} active={color === c} onClick={() => setColor(c)}>
+                {c}
+              </FilterOption>
+            ))}
+          </FilterGroup>
+
+          <FilterGroup label="Tipo de Uso">
+            <FilterOption active={usageType === "todos"} onClick={() => setUsageType("todos")}>
+              Todos
+            </FilterOption>
+            {usageTypes.map((u) => (
+              <FilterOption key={u} active={usageType === u} onClick={() => setUsageType(u)}>
+                {u}
+              </FilterOption>
+            ))}
+          </FilterGroup>
+
+          <FilterGroup label="Género">
+            <FilterOption active={gender === "todos"} onClick={() => setGender("todos")}>
+              Todos
+            </FilterOption>
+            {genders.map((g) => (
+              <FilterOption key={g} active={gender === g} onClick={() => setGender(g)}>
+                {g}
               </FilterOption>
             ))}
           </FilterGroup>

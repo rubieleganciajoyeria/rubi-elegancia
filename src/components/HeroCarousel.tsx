@@ -26,7 +26,9 @@ export function HeroCarousel({ banners }: { banners: Banner[] }) {
 
   useEffect(() => {
     if (!embla || banners.length <= 1) return;
-    const id = setInterval(() => embla.scrollNext(), 6000);
+    const id = setInterval(() => {
+      if (!document.hidden) embla.scrollNext();
+    }, 6000);
     return () => clearInterval(id);
   }, [embla, banners.length, selected]);
 

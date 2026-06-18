@@ -5,7 +5,14 @@ export type Product = {
   category: "relojeria" | "joyeria";
   categoryLabel: string;
   brand: string;
-  material: string;
+  color: string | null;
+  colorId: string | null;
+  material: string | null;
+  materialId: string | null;
+  usageType: string | null;
+  usageTypeId: string | null;
+  gender: string | null;
+  genderId: string | null;
   price: number;
   discountPrice?: number;
   image: string;
@@ -23,7 +30,14 @@ type DbRow = {
   category: string;
   category_label: string;
   brand: string;
-  material: string;
+  color_id?: string | null;
+  material_id?: string | null;
+  usage_type_id?: string | null;
+  gender_id?: string | null;
+  color_ref?: { name: string } | null;
+  material_ref?: { name: string } | null;
+  usage_type_ref?: { name: string } | null;
+  gender_ref?: { name: string } | null;
   price: number;
   discount_price: number | null;
   image: string;
@@ -48,7 +62,14 @@ export function mapProduct(row: DbRow): Product {
     category: (row.category as "relojeria" | "joyeria") ?? "relojeria",
     categoryLabel: row.category_label,
     brand: row.brand,
-    material: row.material,
+    color: row.color_ref?.name ?? null,
+    colorId: row.color_id ?? null,
+    material: row.material_ref?.name ?? null,
+    materialId: row.material_id ?? null,
+    usageType: row.usage_type_ref?.name ?? null,
+    usageTypeId: row.usage_type_id ?? null,
+    gender: row.gender_ref?.name ?? null,
+    genderId: row.gender_id ?? null,
     price: row.price,
     discountPrice: row.discount_price ?? undefined,
     image: primary,

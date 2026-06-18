@@ -40,7 +40,7 @@ export const listActiveProducts = createServerFn({ method: "GET" }).handler(
     const [{ data, error }, promos] = await Promise.all([
       supabaseAdmin
         .from("products")
-        .select("*, product_images(id,url,alt,sort_order,is_primary)")
+        .select("*, product_images(id,url,alt,sort_order,is_primary), color_ref:product_taxonomies!color_id(name), material_ref:product_taxonomies!material_id(name), usage_type_ref:product_taxonomies!usage_type_id(name), gender_ref:product_taxonomies!gender_id(name)")
         .eq("is_active", true)
         .order("sort_order", { ascending: true })
         .order("sort_order", { foreignTable: "product_images", ascending: true }),
@@ -62,7 +62,7 @@ export const getProductBySlug = createServerFn({ method: "GET" })
     const [{ data: row, error }, promos] = await Promise.all([
       supabaseAdmin
         .from("products")
-        .select("*, product_images(id,url,alt,sort_order,is_primary)")
+        .select("*, product_images(id,url,alt,sort_order,is_primary), color_ref:product_taxonomies!color_id(name), material_ref:product_taxonomies!material_id(name), usage_type_ref:product_taxonomies!usage_type_id(name), gender_ref:product_taxonomies!gender_id(name)")
         .eq("slug", data.slug)
         .eq("is_active", true)
         .order("sort_order", { foreignTable: "product_images", ascending: true })
@@ -96,7 +96,7 @@ export const adminListProducts = createServerFn({ method: "GET" })
     await assertAdmin(context.userId);
     const { data, error } = await supabaseAdmin
       .from("products")
-      .select("*, product_images(id,url,alt,sort_order,is_primary)")
+      .select("*, product_images(id,url,alt,sort_order,is_primary), color_ref:product_taxonomies!color_id(name), material_ref:product_taxonomies!material_id(name), usage_type_ref:product_taxonomies!usage_type_id(name), gender_ref:product_taxonomies!gender_id(name)")
       .order("sort_order", { ascending: true })
       .order("sort_order", { foreignTable: "product_images", ascending: true });
     if (error) throw new Error(error.message);
@@ -110,7 +110,10 @@ const productSchema = z.object({
   category: z.string().min(1).max(60).regex(/^[a-z0-9-]+$/, "category: slug inválido"),
   category_label: z.string().min(1).max(60),
   brand: z.string().min(1).max(120),
-  material: z.string().min(1).max(200),
+  color_id: z.string().uuid().nullable().optional(),
+  material_id: z.string().uuid().nullable().optional(),
+  usage_type_id: z.string().uuid().nullable().optional(),
+  gender_id: z.string().uuid().nullable().optional(),
   price: z.number().int().nonnegative().max(2_000_000_000),
   discount_price: z.number().int().nonnegative().max(2_000_000_000).nullable().optional(),
   image: z.string().min(1).max(500),
@@ -213,4 +216,50 @@ export const getMyRole = createServerFn({ method: "GET" })
       userId: context.userId,
       isAdmin: (data ?? []).some((r) => r.role === "admin"),
     };
+  });
+
+// --------- Taxonomies ---------
+
+export type ProductTaxonomy = {
+  id: string;
+  type: "color" | "material" | "usage" | "gender";
+  name: string;
+};
+
+export const listTaxonomies = createServerFn({ method: "GET" }).handler(async () => {
+  const { data, error } = await supabaseAdmin.from("product_taxonomies").select("*").order("name");
+  if (error) throw new Error(error.message);
+  return (data ?? []) as ProductTaxonomy[];
+});
+
+export const upsertTaxonomy = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({
+      id: z.string().uuid().optional(),
+      type: z.enum(["color", "material", "usage", "gender"]),
+      name: z.string().min(1).max(100)
+    }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
+    if (data.id) {
+      const { error } = await supabaseAdmin.from("product_taxonomies").update({ name: data.name }).eq("id", data.id);
+      if (error) throw new Error(error.message);
+      return { id: data.id };
+    } else {
+      const { data: row, error } = await supabaseAdmin.from("product_taxonomies").insert(data).select("id").single();
+      if (error) throw new Error(error.message);
+      return { id: row.id };
+    }
+  });
+
+export const deleteTaxonomy = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
+    const { error } = await supabaseAdmin.from("product_taxonomies").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });

@@ -49,6 +49,7 @@ import {
   upsertSiteContent,
 } from "@/lib/site-content.functions";
 import { formatCOP } from "@/data/products";
+import { listTaxonomies, upsertTaxonomy, deleteTaxonomy, type ProductTaxonomy } from "@/lib/products.functions";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({ meta: [{ title: "Admin — Rubí" }] }),
@@ -68,6 +69,7 @@ function AdminPage() {
   const del = useServerFn(deleteProduct);
   const saveImages = useServerFn(replaceProductImages);
   const listCats = useServerFn(adminListCategories);
+  const listTax = useServerFn(listTaxonomies);
   const qc = useQueryClient();
 
   const roleQ = useQuery({ queryKey: ["my-role"], queryFn: () => role() });
@@ -79,6 +81,11 @@ function AdminPage() {
   const categoriesQ = useQuery({
     queryKey: ["admin", "categories"],
     queryFn: () => listCats(),
+    enabled: !!roleQ.data?.isAdmin,
+  });
+  const taxonomiesQ = useQuery({
+    queryKey: ["admin", "taxonomies"],
+    queryFn: () => listTax(),
     enabled: !!roleQ.data?.isAdmin,
   });
 
@@ -180,6 +187,10 @@ function AdminPage() {
       <div className="gold-divider my-12" />
 
       <CategoriesAdmin />
+
+      <div className="gold-divider my-12" />
+
+      <TaxonomiesAdmin taxonomies={taxonomiesQ.data ?? []} />
 
       <div className="gold-divider my-12" />
 
@@ -292,6 +303,7 @@ function AdminPage() {
         <ProductEditor
           initial={editing}
           categories={categoriesQ.data ?? []}
+          taxonomies={taxonomiesQ.data ?? []}
           onCancel={() => setEditing(null)}
           saving={saveM.isPending}
           error={saveM.error instanceof Error ? saveM.error.message : null}
@@ -309,7 +321,10 @@ type FormValues = {
   category: string;
   category_label: string;
   brand: string;
-  material: string;
+  color_id: string | null;
+  material_id: string | null;
+  usage_type_id: string | null;
+  gender_id: string | null;
   price: number;
   discount_price: number | null;
   image: string;
@@ -325,6 +340,7 @@ type FormValues = {
 function ProductEditor({
   initial,
   categories,
+  taxonomies,
   onCancel,
   onSubmit,
   saving,
@@ -332,6 +348,7 @@ function ProductEditor({
 }: {
   initial: Partial<ProductRow>;
   categories: Array<{ slug: string; name: string }>;
+  taxonomies: ProductTaxonomy[];
   onCancel: () => void;
   onSubmit: (v: FormValues) => void;
   saving: boolean;
@@ -353,7 +370,10 @@ function ProductEditor({
     category: initial.category ?? categories[0]?.slug ?? "",
     category_label: initial.category_label ?? categories[0]?.name ?? "",
     brand: initial.brand ?? "Rubí Atelier",
-    material: initial.material ?? "",
+    color_id: initial.color_id ?? null,
+    material_id: initial.material_id ?? null,
+    usage_type_id: initial.usage_type_id ?? null,
+    gender_id: initial.gender_id ?? null,
     price: initial.price ?? 0,
     discount_price: initial.discount_price ?? null,
     image: initialImages[0]?.url ?? initial.image ?? "",
@@ -419,7 +439,61 @@ function ProductEditor({
           </div>
           <Field label="Marca" value={v.brand} onChange={(x) => set("brand", x)} required />
 
-          <Field label="Material" value={v.material} onChange={(x) => set("material", x)} required className="sm:col-span-2" />
+          <div className="grid gap-4 sm:grid-cols-2 sm:col-span-2 mt-2 p-4 border border-foreground/10 bg-secondary/20">
+            <h3 className="sm:col-span-2 font-serif text-lg">Características (Filtros)</h3>
+            <div>
+              <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Color</label>
+              <select
+                value={v.color_id ?? ""}
+                onChange={(e) => set("color_id", e.target.value || null)}
+                className="mt-2 w-full border border-foreground/20 bg-background px-3 py-2 text-sm focus:border-wine"
+              >
+                <option value="">— Ninguno —</option>
+                {taxonomies.filter((t) => t.type === "color").map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Material</label>
+              <select
+                value={v.material_id ?? ""}
+                onChange={(e) => set("material_id", e.target.value || null)}
+                className="mt-2 w-full border border-foreground/20 bg-background px-3 py-2 text-sm focus:border-wine"
+              >
+                <option value="">— Ninguno —</option>
+                {taxonomies.filter((t) => t.type === "material").map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Tipo de Uso</label>
+              <select
+                value={v.usage_type_id ?? ""}
+                onChange={(e) => set("usage_type_id", e.target.value || null)}
+                className="mt-2 w-full border border-foreground/20 bg-background px-3 py-2 text-sm focus:border-wine"
+              >
+                <option value="">— Ninguno —</option>
+                {taxonomies.filter((t) => t.type === "usage").map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Género</label>
+              <select
+                value={v.gender_id ?? ""}
+                onChange={(e) => set("gender_id", e.target.value || null)}
+                className="mt-2 w-full border border-foreground/20 bg-background px-3 py-2 text-sm focus:border-wine"
+              >
+                <option value="">— Ninguno —</option>
+                {taxonomies.filter((t) => t.type === "gender").map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
 
           <FieldNumber label="Precio (COP)" value={v.price} onChange={(n) => set("price", n)} required />
           <FieldNumber
@@ -2296,6 +2370,114 @@ function DashboardAdmin() {
           )}
         </div>
       </div>
+    </section>
+  );
+}
+
+const TAXONOMY_TYPES = [
+  { value: "color", label: "Color" },
+  { value: "material", label: "Material" },
+  { value: "usage", label: "Tipo de Uso" },
+  { value: "gender", label: "Género" },
+] as const;
+
+function TaxonomiesAdmin({ taxonomies }: { taxonomies: ProductTaxonomy[] }) {
+  const save = useServerFn(upsertTaxonomy);
+  const del = useServerFn(deleteTaxonomy);
+  const qc = useQueryClient();
+  const [filterType, setFilterType] = useState<ProductTaxonomy["type"]>("color");
+  const [editing, setEditing] = useState<Partial<ProductTaxonomy> | null>(null);
+
+  const saveM = useMutation({
+    mutationFn: (v: any) => save({ data: v }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "taxonomies"] });
+      setEditing(null);
+    },
+  });
+
+  const delM = useMutation({
+    mutationFn: (id: string) => del({ data: { id } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "taxonomies"] }),
+  });
+
+  const filtered = taxonomies.filter((t) => t.type === filterType);
+
+  return (
+    <section>
+      <div className="mb-6 flex items-center justify-between">
+        <h2 className="font-serif text-2xl">Atributos de Producto</h2>
+        <button
+          onClick={() => setEditing({ type: filterType, name: "" })}
+          className="inline-flex items-center gap-2 bg-wine px-4 py-2 text-[11px] uppercase tracking-[0.25em] text-primary-foreground hover:opacity-90"
+        >
+          <Plus className="h-4 w-4" /> Nuevo
+        </button>
+      </div>
+
+      <div className="mb-4 flex gap-2 overflow-x-auto pb-2">
+        {TAXONOMY_TYPES.map((t) => (
+          <button
+            key={t.value}
+            onClick={() => setFilterType(t.value as any)}
+            className={`whitespace-nowrap px-4 py-2 text-[11px] uppercase tracking-[0.25em] transition-colors ${
+              filterType === t.value ? "bg-foreground text-background" : "bg-secondary text-foreground hover:bg-foreground/10"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+        {filtered.length === 0 && <p className="col-span-full text-sm text-muted-foreground">No hay {TAXONOMY_TYPES.find(t=>t.value===filterType)?.label.toLowerCase()}s creados.</p>}
+        {filtered.map((t) => (
+          <div key={t.id} className="flex items-center justify-between border border-border/60 bg-secondary/20 px-4 py-3">
+            <span className="text-sm font-medium">{t.name}</span>
+            <div className="flex items-center gap-1">
+              <button onClick={() => setEditing(t)} className="p-1.5 text-muted-foreground hover:text-wine" aria-label="Editar">
+                <Pencil className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => {
+                  if (confirm(`¿Eliminar "${t.name}"? Los productos que lo tengan asignado perderán este atributo.`)) {
+                    delM.mutate(t.id);
+                  }
+                }}
+                className="p-1.5 text-muted-foreground hover:text-destructive"
+                aria-label="Eliminar"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {editing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4">
+          <div className="w-full max-w-sm bg-background p-6 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="font-serif text-xl">{editing.id ? "Editar" : "Nuevo"} {TAXONOMY_TYPES.find(t=>t.value===filterType)?.label}</h3>
+              <button onClick={() => setEditing(null)} className="p-1 hover:text-wine"><X className="h-5 w-5" /></button>
+            </div>
+            <form onSubmit={(e) => { e.preventDefault(); saveM.mutate(editing); }}>
+              <Field
+                label="Nombre"
+                value={editing.name ?? ""}
+                onChange={(v) => setEditing({ ...editing, name: v })}
+                required
+              />
+              <div className="mt-6 flex justify-end gap-3">
+                <button type="button" onClick={() => setEditing(null)} className="px-4 py-2 text-xs uppercase tracking-widest text-muted-foreground hover:text-wine">Cancelar</button>
+                <button type="submit" disabled={saveM.isPending} className="bg-wine px-4 py-2 text-xs uppercase tracking-widest text-primary-foreground hover:opacity-90 disabled:opacity-50">
+                  Guardar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
