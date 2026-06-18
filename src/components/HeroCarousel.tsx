@@ -28,7 +28,7 @@ export function HeroCarousel({ banners }: { banners: Banner[] }) {
     if (!embla || banners.length <= 1) return;
     const id = setInterval(() => embla.scrollNext(), 6000);
     return () => clearInterval(id);
-  }, [embla, banners.length]);
+  }, [embla, banners.length, selected]);
 
   const scrollTo = useCallback((i: number) => embla?.scrollTo(i), [embla]);
 
