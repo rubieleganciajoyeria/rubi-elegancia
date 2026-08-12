@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createHash } from "crypto";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { applyPromotions, type ActivePromotion } from "./promotions.functions";
+import { calculateShipping, splitStoredCity, type ShippingSettings } from "./shipping";
 
 const inputSchema = z.object({
   customer_name: z.string().min(1).max(255),
@@ -37,7 +38,11 @@ export const createWompiCheckout = createServerFn({ method: "POST" })
     const ids = Array.from(new Set(data.items.map((i) => i.product_id)));
     const nowIso = new Date().toISOString();
 
-    const [{ data: products, error: pErr }, { data: promos, error: prErr }] = await Promise.all([
+    const [
+      { data: products, error: pErr },
+      { data: promos, error: prErr },
+      { data: settingsRow, error: settingsErr },
+    ] = await Promise.all([
       supabaseAdmin
         .from("products")
         .select("id,name,slug,image,price,discount_price,stock,is_active")
@@ -49,9 +54,11 @@ export const createWompiCheckout = createServerFn({ method: "POST" })
         .lte("starts_at", nowIso)
         .or(`ends_at.is.null,ends_at.gt.${nowIso}`)
         .order("priority", { ascending: false }),
+      supabaseAdmin.from("site_content").select("data").eq("key", "global_settings").maybeSingle(),
     ]);
     if (pErr) throw new Error(pErr.message);
     if (prErr) throw new Error(prErr.message);
+    if (settingsErr) throw new Error(settingsErr.message);
 
     const promoList = (promos ?? []) as ActivePromotion[];
     const productMap = new Map((products ?? []).map((p) => [p.id, p]));
@@ -75,7 +82,13 @@ export const createWompiCheckout = createServerFn({ method: "POST" })
     });
 
     const subtotal = rows.reduce((s, r) => s + r.subtotal, 0);
-    const shipping = subtotal > 0 && subtotal < 500000 ? 25000 : 0;
+    const { city, department } = splitStoredCity(data.city);
+    const shipping = calculateShipping(
+      subtotal,
+      city,
+      department,
+      settingsRow?.data as ShippingSettings | null,
+    );
 
     // Apply coupon if provided
     let discount = 0;
@@ -108,10 +121,12 @@ export const createWompiCheckout = createServerFn({ method: "POST" })
         .maybeSingle();
       if (sErr) throw new Error(sErr.message);
       if (!seller) throw new Error("Código de asesor/vendedor no válido o inactivo");
-      
+
       sellerId = seller.id;
       const commissionableAmount = Math.max(0, subtotal - discount);
-      sellerCommissionEarned = Math.round(commissionableAmount * (Number(seller.commission_percent) / 100));
+      sellerCommissionEarned = Math.round(
+        commissionableAmount * (Number(seller.commission_percent) / 100),
+      );
     }
 
     const { data: order, error: oErr } = await supabaseAdmin
@@ -152,7 +167,10 @@ export const createWompiCheckout = createServerFn({ method: "POST" })
     // Increment coupon usage
     if (appliedCode) {
       const { data: cur } = await supabaseAdmin
-        .from("coupons").select("used_count").eq("code", appliedCode).maybeSingle();
+        .from("coupons")
+        .select("used_count")
+        .eq("code", appliedCode)
+        .maybeSingle();
       if (cur) {
         await supabaseAdmin
           .from("coupons")

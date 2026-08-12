@@ -6,6 +6,8 @@ import { Pencil, Trash2, Plus, LogOut, X } from "lucide-react";
 import { WompiEnvBadge } from "@/components/WompiEnvBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { ImageUpload } from "@/components/ImageUpload";
+import catWatches from "@/assets/cat-watches.jpg";
+import catJewelry from "@/assets/cat-jewelry.jpg";
 import {
   adminListProducts,
   upsertProduct,
@@ -13,43 +15,40 @@ import {
   getMyRole,
   replaceProductImages,
 } from "@/lib/products.functions";
-import {
-  adminListBanners,
-  upsertBanner,
-  deleteBanner,
-} from "@/lib/banners.functions";
-import {
-  adminListCategories,
-  upsertCategory,
-  deleteCategory,
-} from "@/lib/categories.functions";
-import {
-  adminListPromotions,
-  upsertPromotion,
-  deletePromotion,
-} from "@/lib/promotions.functions";
-import {
-  adminListCoupons,
-  upsertCoupon,
-  deleteCoupon,
-} from "@/lib/coupons.functions";
-import {
-  adminListSellers,
-  upsertSeller,
-  deleteSeller,
-} from "@/lib/sellers.functions";
+import { adminListBanners, upsertBanner, deleteBanner } from "@/lib/banners.functions";
+import { adminListCategories, upsertCategory, deleteCategory } from "@/lib/categories.functions";
+import { adminListPromotions, upsertPromotion, deletePromotion } from "@/lib/promotions.functions";
+import { adminListCoupons, upsertCoupon, deleteCoupon } from "@/lib/coupons.functions";
+import { adminListSellers, upsertSeller, deleteSeller } from "@/lib/sellers.functions";
 import {
   adminListOrders,
   updateOrderStatus,
   deleteOrder,
   adminGetMetrics,
 } from "@/lib/orders.functions";
+import { listSiteContent, upsertSiteContent } from "@/lib/site-content.functions";
 import {
-  listSiteContent,
-  upsertSiteContent,
-} from "@/lib/site-content.functions";
+  adminListBrands,
+  upsertBrand,
+  deleteBrand,
+  type BrandCategory,
+  type ManagedBrand,
+} from "@/lib/brands.functions";
 import { formatCOP } from "@/data/products";
-import { listTaxonomies, upsertTaxonomy, deleteTaxonomy, type ProductTaxonomy } from "@/lib/products.functions";
+import {
+  listTaxonomies,
+  upsertTaxonomy,
+  deleteTaxonomy,
+  type ProductTaxonomy,
+} from "@/lib/products.functions";
+import { COLOMBIA_DEPARTMENTS } from "@/data/colombiaLocations";
+import type { ShippingCityRate, ShippingSettings } from "@/lib/shipping";
+import {
+  normalizeFooterContent,
+  type FooterColumn,
+  type FooterContent,
+  type FooterLink,
+} from "@/lib/footer-content";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({ meta: [{ title: "Admin — Rubí" }] }),
@@ -61,6 +60,70 @@ export const Route = createFileRoute("/admin")({
 });
 
 type ProductRow = Awaited<ReturnType<typeof adminListProducts>>[number];
+type ProductStatusFilter = "all" | "active" | "hidden";
+
+type GlobalSettingsForm = ShippingSettings & {
+  whatsapp?: string;
+  whatsapp_message?: string;
+  announcement?: string;
+  global_discount_percent?: number;
+  global_discount_active?: boolean;
+};
+
+type HomeCategoryCardForm = {
+  image: string;
+  title: string;
+  subtitle: string;
+  to: string;
+  cta_label: string;
+};
+
+type HomeCategoriesForm = {
+  eyebrow: string;
+  title: string;
+  cards: HomeCategoryCardForm[];
+};
+
+const DEFAULT_HOME_CATEGORIES: HomeCategoriesForm = {
+  eyebrow: "Colecciones",
+  title: "Dos universos, una visión",
+  cards: [
+    {
+      image: catWatches,
+      title: "Relojería",
+      subtitle: "Tiempo en su forma más pura",
+      to: "relojeria",
+      cta_label: "Descubrir",
+    },
+    {
+      image: catJewelry,
+      title: "Joyería",
+      subtitle: "La luz hecha materia",
+      to: "joyeria",
+      cta_label: "Descubrir",
+    },
+  ],
+};
+
+function normalizeHomeCategories(value: unknown): HomeCategoriesForm {
+  if (!value || typeof value !== "object") return DEFAULT_HOME_CATEGORIES;
+  const section = value as Partial<HomeCategoriesForm>;
+  const cards =
+    Array.isArray(section.cards) && section.cards.length > 0
+      ? section.cards
+      : DEFAULT_HOME_CATEGORIES.cards;
+  return {
+    eyebrow: section.eyebrow ?? DEFAULT_HOME_CATEGORIES.eyebrow,
+    title: section.title ?? DEFAULT_HOME_CATEGORIES.title,
+    cards: cards.map((card, index) => ({
+      image: card.image ?? DEFAULT_HOME_CATEGORIES.cards[index]?.image ?? "",
+      title: card.title ?? DEFAULT_HOME_CATEGORIES.cards[index]?.title ?? "",
+      subtitle: card.subtitle ?? DEFAULT_HOME_CATEGORIES.cards[index]?.subtitle ?? "",
+      to: card.to ?? DEFAULT_HOME_CATEGORIES.cards[index]?.to ?? "catalogo",
+      cta_label: card.cta_label ?? DEFAULT_HOME_CATEGORIES.cards[index]?.cta_label ?? "Descubrir",
+    })),
+  };
+}
 
 function AdminPage() {
   const list = useServerFn(adminListProducts);
@@ -70,6 +133,7 @@ function AdminPage() {
   const saveImages = useServerFn(replaceProductImages);
   const listCats = useServerFn(adminListCategories);
   const listTax = useServerFn(listTaxonomies);
+  const listBrands = useServerFn(adminListBrands);
   const qc = useQueryClient();
 
   const roleQ = useQuery({ queryKey: ["my-role"], queryFn: () => role() });
@@ -88,8 +152,31 @@ function AdminPage() {
     queryFn: () => listTax(),
     enabled: !!roleQ.data?.isAdmin,
   });
+  const brandsQ = useQuery({
+    queryKey: ["admin", "brands"],
+    queryFn: () => listBrands(),
+    enabled: !!roleQ.data?.isAdmin,
+  });
 
   const [editing, setEditing] = useState<Partial<ProductRow> | null>(null);
+  const [productSearch, setProductSearch] = useState("");
+  const [productCategoryFilter, setProductCategoryFilter] = useState("all");
+  const [productStatusFilter, setProductStatusFilter] = useState<ProductStatusFilter>("all");
+
+  const filteredProducts = useMemo(() => {
+    const term = productSearch.trim().toLowerCase();
+    return (productsQ.data ?? []).filter((product) => {
+      if (productCategoryFilter !== "all" && product.category !== productCategoryFilter) {
+        return false;
+      }
+      if (productStatusFilter === "active" && !product.is_active) return false;
+      if (productStatusFilter === "hidden" && product.is_active) return false;
+      if (!term) return true;
+      const haystack =
+        `${product.name} ${product.slug} ${product.brand} ${product.category_label}`.toLowerCase();
+      return haystack.includes(term);
+    });
+  }, [productsQ.data, productSearch, productCategoryFilter, productStatusFilter]);
 
   const saveM = useMutation({
     mutationFn: async (data: FormValues) => {
@@ -111,6 +198,8 @@ function AdminPage() {
       qc.invalidateQueries({ queryKey: ["admin", "products"] });
       qc.invalidateQueries({ queryKey: ["products"] });
       qc.invalidateQueries({ queryKey: ["product"] });
+      qc.invalidateQueries({ queryKey: ["brands"] });
+      qc.invalidateQueries({ queryKey: ["brand"] });
       setEditing(null);
     },
   });
@@ -124,7 +213,9 @@ function AdminPage() {
   });
 
   if (roleQ.isLoading) {
-    return <div className="mx-auto max-w-4xl px-6 py-20 text-sm text-muted-foreground">Cargando…</div>;
+    return (
+      <div className="mx-auto max-w-4xl px-6 py-20 text-sm text-muted-foreground">Cargando…</div>
+    );
   }
 
   if (!roleQ.data?.isAdmin) {
@@ -134,7 +225,8 @@ function AdminPage() {
         <p className="mt-3 text-sm text-muted-foreground">
           Tu usuario ({roleQ.data?.userId}) no tiene rol de administrador.
           <br />
-          Asígnalo desde el backend insertando una fila en <code>user_roles</code> con rol <code>admin</code>.
+          Asígnalo desde el backend insertando una fila en <code>user_roles</code> con rol{" "}
+          <code>admin</code>.
         </p>
         <button
           onClick={async () => {
@@ -182,6 +274,10 @@ function AdminPage() {
 
       <div className="gold-divider my-12" />
 
+      <BrandsAdmin />
+
+      <div className="gold-divider my-12" />
+
       <BannersAdmin />
 
       <div className="gold-divider my-12" />
@@ -214,11 +310,55 @@ function AdminPage() {
 
       <div className="gold-divider my-12" />
 
+      <FooterAdmin />
+
+      <div className="gold-divider my-12" />
+
       <GlobalSettingsAdmin />
 
       <div className="gold-divider my-12" />
 
-      <h2 className="mb-6 font-serif text-2xl">Productos</h2>
+      <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div>
+          <h2 className="font-serif text-2xl">Productos</h2>
+          {!productsQ.isLoading && (
+            <p className="mt-1 text-xs uppercase tracking-[0.2em] text-muted-foreground">
+              {filteredProducts.length} de {(productsQ.data ?? []).length} producto
+              {(productsQ.data ?? []).length === 1 ? "" : "s"}
+            </p>
+          )}
+        </div>
+        <div className="grid gap-3 md:grid-cols-[minmax(220px,1fr)_160px_130px]">
+          <input
+            type="search"
+            value={productSearch}
+            onChange={(e) => setProductSearch(e.target.value)}
+            placeholder="Buscar por nombre, referencia o marca"
+            className="border border-foreground/20 bg-transparent px-3 py-2 text-sm outline-none focus:border-wine"
+          />
+          <select
+            value={productCategoryFilter}
+            onChange={(e) => setProductCategoryFilter(e.target.value)}
+            className="border border-foreground/20 bg-transparent px-3 py-2 text-xs uppercase tracking-[0.15em] outline-none focus:border-wine"
+          >
+            <option value="all">Categorías</option>
+            {categoriesQ.data?.map((category) => (
+              <option key={category.slug} value={category.slug}>
+                {category.name}
+              </option>
+            ))}
+          </select>
+          <select
+            value={productStatusFilter}
+            onChange={(e) => setProductStatusFilter(e.target.value as ProductStatusFilter)}
+            className="border border-foreground/20 bg-transparent px-3 py-2 text-xs uppercase tracking-[0.15em] outline-none focus:border-wine"
+          >
+            <option value="all">Estado</option>
+            <option value="active">Activo</option>
+            <option value="hidden">Oculto</option>
+          </select>
+        </div>
+      </div>
 
       {productsQ.isLoading ? (
         <p className="text-sm text-muted-foreground">Cargando productos…</p>
@@ -235,7 +375,7 @@ function AdminPage() {
               </tr>
             </thead>
             <tbody>
-              {(productsQ.data ?? []).map((p) => (
+              {filteredProducts.map((p) => (
                 <tr key={p.id} className="border-t border-border/60">
                   <td className="p-3">
                     <div className="flex items-center gap-3">
@@ -246,12 +386,16 @@ function AdminPage() {
                       </div>
                     </div>
                   </td>
-                  <td className="p-3 text-xs uppercase tracking-wider text-muted-foreground">{p.category_label}</td>
+                  <td className="p-3 text-xs uppercase tracking-wider text-muted-foreground">
+                    {p.category_label}
+                  </td>
                   <td className="p-3">
                     {p.discount_price ? (
                       <>
                         <span className="text-wine">{formatCOP(p.discount_price)}</span>{" "}
-                        <span className="text-xs text-muted-foreground line-through">{formatCOP(p.price)}</span>
+                        <span className="text-xs text-muted-foreground line-through">
+                          {formatCOP(p.price)}
+                        </span>
                       </>
                     ) : (
                       formatCOP(p.price)
@@ -260,7 +404,9 @@ function AdminPage() {
                   <td className="p-3">
                     <span
                       className={`px-2 py-1 text-[10px] uppercase tracking-wider ${
-                        p.is_active ? "bg-secondary text-foreground" : "bg-muted text-muted-foreground"
+                        p.is_active
+                          ? "bg-secondary text-foreground"
+                          : "bg-muted text-muted-foreground"
                       }`}
                     >
                       {p.is_active ? "Activo" : "Oculto"}
@@ -286,16 +432,27 @@ function AdminPage() {
                   </td>
                 </tr>
               ))}
+              {filteredProducts.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="p-8 text-center text-sm text-muted-foreground">
+                    No encontramos productos con esos filtros.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
       )}
 
       <p className="mt-4 text-xs text-muted-foreground">
-        Imágenes: puedes usar rutas locales como <code>/products/nombre.jpg</code> (colócalas en <code>/public/products/</code>) o URLs completas.
+        Imágenes: puedes usar rutas locales como <code>/products/nombre.jpg</code> (colócalas en{" "}
+        <code>/public/products/</code>) o URLs completas.
       </p>
 
-      <Link to="/" className="mt-8 inline-block text-[11px] uppercase tracking-[0.25em] text-muted-foreground hover:text-wine">
+      <Link
+        to="/"
+        className="mt-8 inline-block text-[11px] uppercase tracking-[0.25em] text-muted-foreground hover:text-wine"
+      >
         ← Volver a la tienda
       </Link>
 
@@ -303,6 +460,7 @@ function AdminPage() {
         <ProductEditor
           initial={editing}
           categories={categoriesQ.data ?? []}
+          brands={brandsQ.data ?? []}
           taxonomies={taxonomiesQ.data ?? []}
           onCancel={() => setEditing(null)}
           saving={saveM.isPending}
@@ -340,6 +498,7 @@ type FormValues = {
 function ProductEditor({
   initial,
   categories,
+  brands,
   taxonomies,
   onCancel,
   onSubmit,
@@ -348,6 +507,7 @@ function ProductEditor({
 }: {
   initial: Partial<ProductRow>;
   categories: Array<{ slug: string; name: string }>;
+  brands: ManagedBrand[];
   taxonomies: ProductTaxonomy[];
   onCancel: () => void;
   onSubmit: (v: FormValues) => void;
@@ -355,11 +515,18 @@ function ProductEditor({
   error: string | null;
 }) {
   const initialImages: Array<{ url: string; alt: string }> = (() => {
-    const pi = (initial as { product_images?: Array<{ url: string; alt: string; sort_order: number }> }).product_images;
+    const pi = (
+      initial as { product_images?: Array<{ url: string; alt: string; sort_order: number }> }
+    ).product_images;
     if (Array.isArray(pi) && pi.length > 0) {
-      return [...pi].sort((a, b) => a.sort_order - b.sort_order).map((i) => ({ url: i.url, alt: i.alt ?? "" }));
+      return [...pi]
+        .sort((a, b) => a.sort_order - b.sort_order)
+        .map((i) => ({ url: i.url, alt: i.alt ?? "" }));
     }
-    const legacy = [initial.image, ...(Array.isArray(initial.gallery) ? (initial.gallery as string[]) : [])].filter(Boolean) as string[];
+    const legacy = [
+      initial.image,
+      ...(Array.isArray(initial.gallery) ? (initial.gallery as string[]) : []),
+    ].filter(Boolean) as string[];
     return legacy.map((url) => ({ url, alt: "" }));
   })();
 
@@ -369,7 +536,7 @@ function ProductEditor({
     name: initial.name ?? "",
     category: initial.category ?? categories[0]?.slug ?? "",
     category_label: initial.category_label ?? categories[0]?.name ?? "",
-    brand: initial.brand ?? "Rubí Atelier",
+    brand: initial.brand ?? brands[0]?.name ?? "",
     color_id: initial.color_id ?? null,
     material_id: initial.material_id ?? null,
     usage_type_id: initial.usage_type_id ?? null,
@@ -414,10 +581,17 @@ function ProductEditor({
           className="mt-6 grid gap-4 sm:grid-cols-2"
         >
           <Field label="Nombre" value={v.name} onChange={(x) => set("name", x)} required />
-          <Field label="Slug (URL)" value={v.slug} onChange={(x) => set("slug", x.toLowerCase())} required />
+          <Field
+            label="Slug (URL)"
+            value={v.slug}
+            onChange={(x) => set("slug", x.toLowerCase())}
+            required
+          />
 
           <div>
-            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Categoría</label>
+            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+              Categoría
+            </label>
             <select
               value={v.category}
               onChange={(e) => {
@@ -427,9 +601,7 @@ function ProductEditor({
               }}
               className="mt-2 w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm focus:border-wine"
             >
-              {categories.length === 0 && (
-                <option value="">— Crea una categoría primero —</option>
-              )}
+              {categories.length === 0 && <option value="">— Crea una categoría primero —</option>}
               {categories.map((c) => (
                 <option key={c.slug} value={c.slug}>
                   {c.name}
@@ -437,65 +609,111 @@ function ProductEditor({
               ))}
             </select>
           </div>
-          <Field label="Marca" value={v.brand} onChange={(x) => set("brand", x)} required />
+          <div>
+            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+              Marca
+            </label>
+            <select
+              value={v.brand}
+              onChange={(e) => set("brand", e.target.value)}
+              required
+              className="mt-2 w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm focus:border-wine"
+            >
+              {brands.length === 0 && <option value="">— Crea una marca primero —</option>}
+              {brands.map((brand) => (
+                <option key={brand.slug} value={brand.name}>
+                  {brand.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
           <div className="grid gap-4 sm:grid-cols-2 sm:col-span-2 mt-2 p-4 border border-foreground/10 bg-secondary/20">
             <h3 className="sm:col-span-2 font-serif text-lg">Características (Filtros)</h3>
             <div>
-              <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Color</label>
+              <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+                Color
+              </label>
               <select
                 value={v.color_id ?? ""}
                 onChange={(e) => set("color_id", e.target.value || null)}
                 className="mt-2 w-full border border-foreground/20 bg-background px-3 py-2 text-sm focus:border-wine"
               >
                 <option value="">— Ninguno —</option>
-                {taxonomies.filter((t) => t.type === "color").map((t) => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
-                ))}
+                {taxonomies
+                  .filter((t) => t.type === "color")
+                  .map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
               </select>
             </div>
             <div>
-              <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Material</label>
+              <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+                Material
+              </label>
               <select
                 value={v.material_id ?? ""}
                 onChange={(e) => set("material_id", e.target.value || null)}
                 className="mt-2 w-full border border-foreground/20 bg-background px-3 py-2 text-sm focus:border-wine"
               >
                 <option value="">— Ninguno —</option>
-                {taxonomies.filter((t) => t.type === "material").map((t) => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
-                ))}
+                {taxonomies
+                  .filter((t) => t.type === "material")
+                  .map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
               </select>
             </div>
             <div>
-              <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Tipo de Uso</label>
+              <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+                Tipo de Uso
+              </label>
               <select
                 value={v.usage_type_id ?? ""}
                 onChange={(e) => set("usage_type_id", e.target.value || null)}
                 className="mt-2 w-full border border-foreground/20 bg-background px-3 py-2 text-sm focus:border-wine"
               >
                 <option value="">— Ninguno —</option>
-                {taxonomies.filter((t) => t.type === "usage").map((t) => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
-                ))}
+                {taxonomies
+                  .filter((t) => t.type === "usage")
+                  .map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
               </select>
             </div>
             <div>
-              <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Género</label>
+              <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+                Género
+              </label>
               <select
                 value={v.gender_id ?? ""}
                 onChange={(e) => set("gender_id", e.target.value || null)}
                 className="mt-2 w-full border border-foreground/20 bg-background px-3 py-2 text-sm focus:border-wine"
               >
                 <option value="">— Ninguno —</option>
-                {taxonomies.filter((t) => t.type === "gender").map((t) => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
-                ))}
+                {taxonomies
+                  .filter((t) => t.type === "gender")
+                  .map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
               </select>
             </div>
           </div>
 
-          <FieldNumber label="Precio (COP)" value={v.price} onChange={(n) => set("price", n)} required />
+          <FieldNumber
+            label="Precio (COP)"
+            value={v.price}
+            onChange={(n) => set("price", n)}
+            required
+          />
           <FieldNumber
             label="Precio con descuento (opcional)"
             value={v.discount_price ?? 0}
@@ -589,7 +807,9 @@ function ProductEditor({
           </div>
 
           <div className="sm:col-span-2">
-            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Descripción</label>
+            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+              Descripción
+            </label>
             <textarea
               value={v.description}
               onChange={(e) => set("description", e.target.value)}
@@ -598,7 +818,12 @@ function ProductEditor({
             />
           </div>
 
-          <Field label="Garantía" value={v.warranty} onChange={(x) => set("warranty", x)} className="sm:col-span-2" />
+          <Field
+            label="Garantía"
+            value={v.warranty}
+            onChange={(x) => set("warranty", x)}
+            className="sm:col-span-2"
+          />
 
           <FieldNumber label="Orden" value={v.sort_order} onChange={(n) => set("sort_order", n)} />
           <div>
@@ -628,7 +853,11 @@ function ProductEditor({
           {error && <p className="sm:col-span-2 text-sm text-wine">{error}</p>}
 
           <div className="sm:col-span-2 mt-2 flex justify-end gap-3">
-            <button type="button" onClick={onCancel} className="px-5 py-3 text-[11px] uppercase tracking-[0.25em] text-muted-foreground hover:text-wine">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="px-5 py-3 text-[11px] uppercase tracking-[0.25em] text-muted-foreground hover:text-wine"
+            >
               Cancelar
             </button>
             <button
@@ -678,8 +907,7 @@ function OrdersAdmin() {
   const sellersMap = new Map((sellersQ.data ?? []).map((s: any) => [s.id, s]));
 
   const updM = useMutation({
-    mutationFn: (v: { id: string; status: (typeof ORDER_STATUSES)[number] }) =>
-      upd({ data: v }),
+    mutationFn: (v: { id: string; status: (typeof ORDER_STATUSES)[number] }) => upd({ data: v }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "orders"] }),
   });
   const delM = useMutation({
@@ -717,12 +945,17 @@ function OrdersAdmin() {
         >
           <option value="all">Todos los estados</option>
           {ORDER_STATUSES.map((s) => (
-            <option key={s} value={s}>{STATUS_LABEL[s]}</option>
+            <option key={s} value={s}>
+              {STATUS_LABEL[s]}
+            </option>
           ))}
         </select>
         {(refFilter || statusFilter !== "all") && (
           <button
-            onClick={() => { setRefFilter(""); setStatusFilter("all"); }}
+            onClick={() => {
+              setRefFilter("");
+              setStatusFilter("all");
+            }}
             className="border border-foreground/20 px-3 py-2 text-[11px] uppercase tracking-[0.2em] text-muted-foreground hover:text-wine"
           >
             Limpiar
@@ -757,11 +990,19 @@ function OrdersAdmin() {
                     </td>
                     <td className="p-3">
                       <div className="font-medium">{o.customer_name}</div>
-                      <div className="text-xs text-muted-foreground">{o.customer_email} · {o.customer_phone}</div>
-                      <div className="text-xs text-muted-foreground">{o.city} — {o.address}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {o.customer_email} · {o.customer_phone}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {o.city} — {o.address}
+                      </div>
                       {o.seller_id && (
                         <div className="mt-1 text-xs text-wine font-medium">
-                          Asesor: <span className="uppercase font-semibold">{sellersMap.get(o.seller_id)?.name || "Cargando..."}</span> ({sellersMap.get(o.seller_id)?.code})
+                          Asesor:{" "}
+                          <span className="uppercase font-semibold">
+                            {sellersMap.get(o.seller_id)?.name || "Cargando..."}
+                          </span>{" "}
+                          ({sellersMap.get(o.seller_id)?.code})
                         </div>
                       )}
                     </td>
@@ -770,7 +1011,9 @@ function OrdersAdmin() {
                         <>
                           <div className="font-mono">{o.wompi_reference}</div>
                           {o.wompi_transaction_id && (
-                            <div className="font-mono text-muted-foreground">tx: {o.wompi_transaction_id}</div>
+                            <div className="font-mono text-muted-foreground">
+                              tx: {o.wompi_transaction_id}
+                            </div>
                           )}
                         </>
                       ) : (
@@ -785,7 +1028,9 @@ function OrdersAdmin() {
                         className="border border-foreground/20 bg-transparent px-2 py-1 text-xs"
                       >
                         {ORDER_STATUSES.map((s) => (
-                          <option key={s} value={s}>{STATUS_LABEL[s]}</option>
+                          <option key={s} value={s}>
+                            {STATUS_LABEL[s]}
+                          </option>
                         ))}
                       </select>
                     </td>
@@ -814,17 +1059,24 @@ function OrdersAdmin() {
                           {(o.order_items ?? []).map((it: any) => (
                             <div key={it.id} className="flex items-center gap-3 text-sm">
                               {it.product_image && (
-                                <img src={it.product_image} alt="" className="h-12 w-10 object-cover" />
+                                <img
+                                  src={it.product_image}
+                                  alt=""
+                                  className="h-12 w-10 object-cover"
+                                />
                               )}
                               <div className="flex-1">
                                 <div>{it.product_name}</div>
-                                <div className="text-xs text-muted-foreground">x{it.qty} · {formatCOP(it.unit_price)} c/u</div>
+                                <div className="text-xs text-muted-foreground">
+                                  x{it.qty} · {formatCOP(it.unit_price)} c/u
+                                </div>
                               </div>
                               <div>{formatCOP(it.subtotal)}</div>
                             </div>
                           ))}
                           <div className="text-xs text-muted-foreground">
-                            Subtotal: {formatCOP(o.subtotal)} · Envío: {formatCOP(o.shipping)} · Notas: {o.notes || "—"}
+                            Subtotal: {formatCOP(o.subtotal)} · Envío: {formatCOP(o.shipping)} ·
+                            Notas: {o.notes || "—"}
                             {o.seller_id && (
                               <>
                                 {" · "}
@@ -840,7 +1092,7 @@ function OrdersAdmin() {
                             </div>
                             {o.wompi_payload && Object.keys(o.wompi_payload).length > 0 ? (
                               <pre className="max-h-80 overflow-auto rounded bg-background/60 p-3 text-[11px] leading-relaxed">
-{JSON.stringify(o.wompi_payload, null, 2)}
+                                {JSON.stringify(o.wompi_payload, null, 2)}
                               </pre>
                             ) : (
                               <p className="text-xs text-muted-foreground">
@@ -877,7 +1129,9 @@ function Field({
 }) {
   return (
     <div className={className}>
-      <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">{label}</label>
+      <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+        {label}
+      </label>
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -901,7 +1155,9 @@ function FieldNumber({
 }) {
   return (
     <div>
-      <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">{label}</label>
+      <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+        {label}
+      </label>
       <input
         type="number"
         min={0}
@@ -910,6 +1166,275 @@ function FieldNumber({
         required={required}
         className="mt-2 w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm focus:border-wine"
       />
+    </div>
+  );
+}
+
+const BRAND_CATEGORIES: Array<{ value: BrandCategory; label: string }> = [
+  { value: "swiss", label: "Marcas suizas" },
+  { value: "fashion", label: "Marcas fashion" },
+  { value: "jewelry", label: "Joyería" },
+];
+
+function BrandsAdmin() {
+  const list = useServerFn(adminListBrands);
+  const save = useServerFn(upsertBrand);
+  const del = useServerFn(deleteBrand);
+  const qc = useQueryClient();
+  const q = useQuery({ queryKey: ["admin", "brands"], queryFn: () => list() });
+  const [editing, setEditing] = useState<Partial<ManagedBrand> | null>(null);
+
+  const saveM = useMutation({
+    mutationFn: (brand: BrandFormValues) => save({ data: brand }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "brands"] });
+      qc.invalidateQueries({ queryKey: ["brands"] });
+      qc.invalidateQueries({ queryKey: ["brand"] });
+      qc.invalidateQueries({ queryKey: ["products"] });
+      setEditing(null);
+    },
+  });
+  const delM = useMutation({
+    mutationFn: (slug: string) => del({ data: { slug } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "brands"] });
+      qc.invalidateQueries({ queryKey: ["brands"] });
+    },
+  });
+
+  return (
+    <section>
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <h2 className="font-serif text-2xl">Marcas</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Administra las marcas visibles en la sección “Nuestras Marcas” y asígnalas a productos.
+          </p>
+        </div>
+        <button
+          onClick={() =>
+            setEditing({
+              category: "swiss",
+              is_active: true,
+              sort_order: (q.data ?? []).length,
+            })
+          }
+          className="inline-flex items-center gap-2 bg-wine px-4 py-2 text-[11px] uppercase tracking-[0.25em] text-primary-foreground hover:opacity-90"
+        >
+          <Plus className="h-4 w-4" /> Nueva marca
+        </button>
+      </div>
+
+      <div className="mt-6 overflow-x-auto border border-border/60">
+        <table className="w-full text-sm">
+          <thead className="bg-secondary/50 text-left text-[11px] uppercase tracking-[0.15em] text-muted-foreground">
+            <tr>
+              <th className="p-3">Marca</th>
+              <th className="p-3">Grupo</th>
+              <th className="p-3">Slug</th>
+              <th className="p-3">Orden</th>
+              <th className="p-3">Estado</th>
+              <th className="p-3 text-right">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(q.data ?? []).map((brand) => (
+              <tr key={brand.slug} className="border-t border-border/60">
+                <td className="p-3">
+                  <p className="font-serif text-base tracking-[0.12em] uppercase">
+                    {brand.logoText}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{brand.logoSubtext || brand.name}</p>
+                </td>
+                <td className="p-3 text-xs uppercase tracking-wider text-muted-foreground">
+                  {BRAND_CATEGORIES.find((cat) => cat.value === brand.category)?.label ??
+                    brand.category}
+                </td>
+                <td className="p-3 font-mono text-xs text-muted-foreground">{brand.slug}</td>
+                <td className="p-3 text-muted-foreground">{brand.sort_order}</td>
+                <td className="p-3">
+                  <span
+                    className={`px-2 py-1 text-[10px] uppercase tracking-wider ${
+                      brand.is_active
+                        ? "bg-secondary text-foreground"
+                        : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {brand.is_active ? "Activa" : "Oculta"}
+                  </span>
+                </td>
+                <td className="p-3 text-right">
+                  <button
+                    onClick={() => setEditing(brand)}
+                    aria-label="Editar marca"
+                    className="mr-2 inline-flex items-center justify-center p-2 hover:text-wine"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (confirm(`¿Eliminar marca ${brand.name}?`)) delM.mutate(brand.slug);
+                    }}
+                    aria-label="Eliminar marca"
+                    className="inline-flex items-center justify-center p-2 hover:text-wine"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </td>
+              </tr>
+            ))}
+            {(q.data ?? []).length === 0 && (
+              <tr>
+                <td colSpan={6} className="p-6 text-center text-sm text-muted-foreground">
+                  No hay marcas configuradas.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+      {delM.error instanceof Error && (
+        <p className="mt-3 text-sm text-destructive">{delM.error.message}</p>
+      )}
+
+      {editing && (
+        <BrandEditor
+          initial={editing}
+          onCancel={() => setEditing(null)}
+          onSubmit={(brand) => saveM.mutate(brand)}
+          saving={saveM.isPending}
+          error={saveM.error instanceof Error ? saveM.error.message : null}
+        />
+      )}
+    </section>
+  );
+}
+
+type BrandFormValues = ManagedBrand & { original_slug?: string };
+
+function BrandEditor({
+  initial,
+  onCancel,
+  onSubmit,
+  saving,
+  error,
+}: {
+  initial: Partial<ManagedBrand>;
+  onCancel: () => void;
+  onSubmit: (brand: BrandFormValues) => void;
+  saving: boolean;
+  error: string | null;
+}) {
+  const [v, setV] = useState<BrandFormValues>({
+    original_slug: initial.slug,
+    slug: initial.slug ?? "",
+    name: initial.name ?? "",
+    category: initial.category ?? "swiss",
+    history: initial.history ?? "",
+    logoText: initial.logoText ?? initial.name?.toUpperCase() ?? "",
+    logoSubtext: initial.logoSubtext ?? "",
+    is_active: initial.is_active ?? true,
+    sort_order: initial.sort_order ?? 0,
+  });
+  const set = <K extends keyof BrandFormValues>(k: K, val: BrandFormValues[K]) =>
+    setV({ ...v, [k]: val });
+
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, []);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4">
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto bg-background p-8 shadow-2xl">
+        <div className="flex items-start justify-between">
+          <h2 className="font-serif text-2xl">{initial.slug ? "Editar marca" : "Nueva marca"}</h2>
+          <button onClick={onCancel} aria-label="Cerrar" className="p-2 hover:text-wine">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            onSubmit(v);
+          }}
+          className="mt-6 grid gap-4 sm:grid-cols-2"
+        >
+          <Field label="Nombre" value={v.name} onChange={(x) => set("name", x)} required />
+          <Field
+            label="Slug (URL)"
+            value={v.slug}
+            onChange={(x) => set("slug", x.toLowerCase())}
+            required
+          />
+          <Field
+            label="Texto logo"
+            value={v.logoText}
+            onChange={(x) => set("logoText", x)}
+            required
+          />
+          <Field
+            label="Subtexto logo"
+            value={v.logoSubtext}
+            onChange={(x) => set("logoSubtext", x)}
+          />
+          <div>
+            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+              Grupo
+            </label>
+            <select
+              value={v.category}
+              onChange={(e) => set("category", e.target.value as BrandCategory)}
+              className="mt-2 w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm focus:border-wine"
+            >
+              {BRAND_CATEGORIES.map((category) => (
+                <option key={category.value} value={category.value}>
+                  {category.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <FieldNumber label="Orden" value={v.sort_order} onChange={(n) => set("sort_order", n)} />
+          <div className="sm:col-span-2">
+            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+              Historia
+            </label>
+            <textarea
+              value={v.history}
+              onChange={(e) => set("history", e.target.value)}
+              rows={5}
+              className="mt-2 w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm outline-none focus:border-wine"
+            />
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={v.is_active}
+              onChange={(e) => set("is_active", e.target.checked)}
+            />
+            Marca visible
+          </label>
+          {error && <p className="sm:col-span-2 text-sm text-destructive">{error}</p>}
+          <div className="sm:col-span-2 mt-2 flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="px-5 py-3 text-[11px] uppercase tracking-[0.25em] text-muted-foreground hover:text-wine"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="bg-wine px-6 py-3 text-[11px] uppercase tracking-[0.25em] text-primary-foreground hover:opacity-90 disabled:opacity-50"
+            >
+              {saving ? "Guardando…" : "Guardar"}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
@@ -970,7 +1495,11 @@ function BannersAdmin() {
                 </p>
               </div>
               <div className="flex flex-col gap-1">
-                <button onClick={() => setEditing(b)} aria-label="Editar" className="p-2 hover:text-wine">
+                <button
+                  onClick={() => setEditing(b)}
+                  aria-label="Editar"
+                  className="p-2 hover:text-wine"
+                >
                   <Pencil className="h-4 w-4" />
                 </button>
                 <button
@@ -1045,8 +1574,7 @@ function BannerEditor({
       document.body.style.overflow = "";
     };
   }, []);
-  const set = <K extends keyof BannerForm>(k: K, val: BannerForm[K]) =>
-    setV({ ...v, [k]: val });
+  const set = <K extends keyof BannerForm>(k: K, val: BannerForm[K]) => setV({ ...v, [k]: val });
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4">
@@ -1079,10 +1607,22 @@ function BannerEditor({
               onUploaded={(url) => set("image", url)}
             />
           </div>
-          <Field label="Eyebrow (texto pequeño superior)" value={v.eyebrow} onChange={(x) => set("eyebrow", x)} className="sm:col-span-2" />
-          <Field label="Título" value={v.title} onChange={(x) => set("title", x)} className="sm:col-span-2" />
+          <Field
+            label="Eyebrow (texto pequeño superior)"
+            value={v.eyebrow}
+            onChange={(x) => set("eyebrow", x)}
+            className="sm:col-span-2"
+          />
+          <Field
+            label="Título"
+            value={v.title}
+            onChange={(x) => set("title", x)}
+            className="sm:col-span-2"
+          />
           <div className="sm:col-span-2">
-            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Subtítulo</label>
+            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+              Subtítulo
+            </label>
             <textarea
               value={v.subtitle}
               onChange={(e) => set("subtitle", e.target.value)}
@@ -1090,10 +1630,16 @@ function BannerEditor({
               className="mt-2 w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm focus:border-wine"
             />
           </div>
-          <Field label="Texto del botón" value={v.cta_label} onChange={(x) => set("cta_label", x)} />
+          <Field
+            label="Texto del botón"
+            value={v.cta_label}
+            onChange={(x) => set("cta_label", x)}
+          />
           <Field label="URL del botón" value={v.cta_url} onChange={(x) => set("cta_url", x)} />
           <div>
-            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Alineación</label>
+            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+              Alineación
+            </label>
             <select
               value={v.align}
               onChange={(e) => set("align", e.target.value as "left" | "center" | "right")}
@@ -1106,13 +1652,21 @@ function BannerEditor({
           </div>
           <FieldNumber label="Orden" value={v.sort_order} onChange={(n) => set("sort_order", n)} />
           <label className="flex items-center gap-2 self-end text-sm sm:col-span-2">
-            <input type="checkbox" checked={v.is_active} onChange={(e) => set("is_active", e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={v.is_active}
+              onChange={(e) => set("is_active", e.target.checked)}
+            />
             Banner activo (visible en el home)
           </label>
 
           {error && <p className="sm:col-span-2 text-sm text-wine">{error}</p>}
           <div className="sm:col-span-2 mt-2 flex justify-end gap-3">
-            <button type="button" onClick={onCancel} className="px-5 py-3 text-[11px] uppercase tracking-[0.25em] text-muted-foreground hover:text-wine">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="px-5 py-3 text-[11px] uppercase tracking-[0.25em] text-muted-foreground hover:text-wine"
+            >
               Cancelar
             </button>
             <button
@@ -1203,14 +1757,20 @@ function CategoriesAdmin() {
                   <td className="p-3">
                     <span
                       className={`px-2 py-1 text-[10px] uppercase tracking-wider ${
-                        c.is_active ? "bg-secondary text-foreground" : "bg-muted text-muted-foreground"
+                        c.is_active
+                          ? "bg-secondary text-foreground"
+                          : "bg-muted text-muted-foreground"
                       }`}
                     >
                       {c.is_active ? "Activa" : "Oculta"}
                     </span>
                   </td>
                   <td className="p-3 text-right">
-                    <button onClick={() => setEditing(c)} aria-label="Editar" className="mr-2 p-2 hover:text-wine">
+                    <button
+                      onClick={() => setEditing(c)}
+                      aria-label="Editar"
+                      className="mr-2 p-2 hover:text-wine"
+                    >
                       <Pencil className="h-4 w-4" />
                     </button>
                     <button
@@ -1303,7 +1863,11 @@ function CategoryEditor({
             onChange={(x) => set("slug", x.toLowerCase())}
             required
           />
-          <Field label="Imagen (URL, opcional)" value={v.image_url} onChange={(x) => set("image_url", x)} />
+          <Field
+            label="Imagen (URL, opcional)"
+            value={v.image_url}
+            onChange={(x) => set("image_url", x)}
+          />
           <FieldNumber label="Orden" value={v.sort_order} onChange={(n) => set("sort_order", n)} />
           <label className="flex items-center gap-2 text-sm">
             <input
@@ -1380,7 +1944,9 @@ function PromotionsAdmin({ products }: { products: Array<{ id: string; name: str
   });
 
   const fmtDate = (s: string | null | undefined) =>
-    s ? new Date(s).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+    s
+      ? new Date(s).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" })
+      : "—";
 
   return (
     <section>
@@ -1434,14 +2000,20 @@ function PromotionsAdmin({ products }: { products: Array<{ id: string; name: str
                     <td className="p-3">
                       <span
                         className={`px-2 py-1 text-[10px] uppercase tracking-wider ${
-                          active ? "bg-wine text-primary-foreground" : "bg-muted text-muted-foreground"
+                          active
+                            ? "bg-wine text-primary-foreground"
+                            : "bg-muted text-muted-foreground"
                         }`}
                       >
                         {active ? "Vigente" : p.is_active ? "Programada/expirada" : "Inactiva"}
                       </span>
                     </td>
                     <td className="p-3 text-right">
-                      <button onClick={() => setEditing(p)} aria-label="Editar" className="mr-2 p-2 hover:text-wine">
+                      <button
+                        onClick={() => setEditing(p)}
+                        aria-label="Editar"
+                        className="mr-2 p-2 hover:text-wine"
+                      >
                         <Pencil className="h-4 w-4" />
                       </button>
                       <button
@@ -1517,8 +2089,7 @@ function PromotionEditor({
     };
   }, []);
 
-  const set = <K extends keyof PromoForm>(k: K, val: PromoForm[K]) =>
-    setV({ ...v, [k]: val });
+  const set = <K extends keyof PromoForm>(k: K, val: PromoForm[K]) => setV({ ...v, [k]: val });
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4">
@@ -1535,16 +2106,26 @@ function PromotionEditor({
             e.preventDefault();
             onSubmit({
               ...v,
-              starts_at: v.starts_at ? new Date(v.starts_at).toISOString() : new Date().toISOString(),
+              starts_at: v.starts_at
+                ? new Date(v.starts_at).toISOString()
+                : new Date().toISOString(),
               ends_at: v.ends_at ? new Date(v.ends_at).toISOString() : null,
             });
           }}
           className="mt-6 grid gap-4 sm:grid-cols-2"
         >
-          <Field label="Nombre" value={v.name} onChange={(x) => set("name", x)} required className="sm:col-span-2" />
+          <Field
+            label="Nombre"
+            value={v.name}
+            onChange={(x) => set("name", x)}
+            required
+            className="sm:col-span-2"
+          />
 
           <div>
-            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Tipo</label>
+            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+              Tipo
+            </label>
             <select
               value={v.kind}
               onChange={(e) => set("kind", e.target.value as "percent" | "amount")}
@@ -1572,13 +2153,17 @@ function PromotionEditor({
             >
               <option value="">— Todos los productos —</option>
               {products.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
               ))}
             </select>
           </div>
 
           <div>
-            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Inicia</label>
+            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+              Inicia
+            </label>
             <input
               type="datetime-local"
               value={v.starts_at}
@@ -1612,7 +2197,11 @@ function PromotionEditor({
           {error && <p className="sm:col-span-2 text-sm text-wine">{error}</p>}
 
           <div className="sm:col-span-2 mt-2 flex justify-end gap-3">
-            <button type="button" onClick={onCancel} className="px-5 py-3 text-[11px] uppercase tracking-[0.25em] text-muted-foreground hover:text-wine">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="px-5 py-3 text-[11px] uppercase tracking-[0.25em] text-muted-foreground hover:text-wine"
+            >
               Cancelar
             </button>
             <button
@@ -1635,39 +2224,191 @@ function HomeSectionsAdmin() {
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["admin", "site-content"], queryFn: () => list() });
   const [edit, setEdit] = useState<Record<string, string>>({});
+  const [categoryForm, setCategoryForm] = useState<HomeCategoriesForm | null>(null);
 
   const saveM = useMutation({
-    mutationFn: (v: { key: string; data: any }) => save({ data: v }),
+    mutationFn: (v: { key: string; data: unknown }) => save({ data: v }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin", "site-content"] });
       qc.invalidateQueries({ queryKey: ["site-content"] });
+      setCategoryForm(null);
     },
   });
 
   if (q.isLoading) return <p className="text-sm text-muted-foreground">Cargando secciones…</p>;
   const data = q.data ?? {};
-  const keys = ["home_pillars", "home_categories_section", "home_emotional", "home_featured", "home_benefits"];
+  const keys = ["home_pillars", "home_emotional", "home_featured", "home_benefits"];
   const labels: Record<string, string> = {
     home_pillars: "Pilares (4 ítems con icon: watch|gem|shield|bag|sparkles)",
-    home_categories_section: "Sección Categorías (eyebrow, title)",
     home_emotional: "Banner Emocional (eyebrow, title, cta_label, cta_url, image)",
     home_featured: "Sección Destacados (eyebrow, title, cta_label, cta_url)",
     home_benefits: "Beneficios (3 ítems con icon: shield|sparkles|gem)",
+  };
+  const categories = categoryForm ?? normalizeHomeCategories(data.home_categories_section);
+  const setCategory = <K extends keyof HomeCategoriesForm>(k: K, value: HomeCategoriesForm[K]) =>
+    setCategoryForm({ ...categories, [k]: value });
+  const setCategoryCard = (index: number, patch: Partial<HomeCategoryCardForm>) => {
+    setCategoryForm({
+      ...categories,
+      cards: categories.cards.map((card, i) => (i === index ? { ...card, ...patch } : card)),
+    });
+  };
+  const addCategoryCard = () => {
+    setCategoryForm({
+      ...categories,
+      cards: [
+        ...categories.cards,
+        {
+          image: "",
+          title: "Nueva colección",
+          subtitle: "Subtítulo",
+          to: "catalogo",
+          cta_label: "Descubrir",
+        },
+      ],
+    });
+  };
+  const removeCategoryCard = (index: number) => {
+    setCategoryForm({ ...categories, cards: categories.cards.filter((_, i) => i !== index) });
   };
 
   return (
     <section>
       <h2 className="mb-6 font-serif text-2xl">Secciones Home</h2>
       <div className="space-y-6">
+        <div className="border border-border/60 p-4">
+          <div className="mb-4 flex items-center justify-between gap-4">
+            <div>
+              <label className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+                Tarjetas de colecciones
+              </label>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Administra las imágenes y textos del bloque “Dos universos, una visión”.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() =>
+                  setCategoryForm(normalizeHomeCategories(data.home_categories_section))
+                }
+                className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground hover:text-wine"
+              >
+                Restaurar
+              </button>
+              <button
+                type="button"
+                onClick={() => saveM.mutate({ key: "home_categories_section", data: categories })}
+                disabled={saveM.isPending}
+                className="bg-wine px-4 py-2 text-[11px] uppercase tracking-[0.25em] text-primary-foreground hover:opacity-90 disabled:opacity-40"
+              >
+                Guardar
+              </button>
+            </div>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field
+              label="Eyebrow"
+              value={categories.eyebrow}
+              onChange={(value) => setCategory("eyebrow", value)}
+            />
+            <Field
+              label="Título"
+              value={categories.title}
+              onChange={(value) => setCategory("title", value)}
+            />
+          </div>
+          <div className="mt-5 space-y-4">
+            {categories.cards.map((card, index) => (
+              <div
+                key={index}
+                className="grid gap-4 border border-border/60 p-4 lg:grid-cols-[220px_1fr]"
+              >
+                <div>
+                  <div className="aspect-[4/5] overflow-hidden bg-secondary">
+                    {card.image ? (
+                      <img src={card.image} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
+                        Sin imagen
+                      </div>
+                    )}
+                  </div>
+                  <ImageUpload
+                    folder="home"
+                    label="Subir imagen"
+                    onUploaded={(url) => setCategoryCard(index, { image: url })}
+                    className="mt-3"
+                  />
+                </div>
+                <div className="grid content-start gap-4 sm:grid-cols-2">
+                  <Field
+                    label="Imagen URL"
+                    value={card.image}
+                    onChange={(value) => setCategoryCard(index, { image: value })}
+                    className="sm:col-span-2"
+                  />
+                  <Field
+                    label="Título"
+                    value={card.title}
+                    onChange={(value) => setCategoryCard(index, { title: value })}
+                    required
+                  />
+                  <Field
+                    label="Subtítulo"
+                    value={card.subtitle}
+                    onChange={(value) => setCategoryCard(index, { subtitle: value })}
+                    required
+                  />
+                  <Field
+                    label="Categoría destino"
+                    value={card.to}
+                    onChange={(value) => setCategoryCard(index, { to: value })}
+                    required
+                  />
+                  <Field
+                    label="CTA"
+                    value={card.cta_label}
+                    onChange={(value) => setCategoryCard(index, { cta_label: value })}
+                  />
+                  <div className="flex items-end justify-end sm:col-span-2">
+                    <button
+                      type="button"
+                      onClick={() => removeCategoryCard(index)}
+                      className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-muted-foreground hover:text-wine disabled:opacity-40"
+                      disabled={categories.cards.length <= 1}
+                    >
+                      <Trash2 className="h-4 w-4" /> Eliminar tarjeta
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={addCategoryCard}
+            className="mt-4 inline-flex items-center gap-2 border border-foreground/30 px-4 py-2 text-[11px] uppercase tracking-[0.2em] hover:border-wine hover:text-wine"
+          >
+            <Plus className="h-4 w-4" /> Agregar tarjeta
+          </button>
+        </div>
+
         {keys.map((k) => {
           const current = JSON.stringify(data[k] ?? {}, null, 2);
           const value = edit[k] ?? current;
           let isValid = true;
-          try { JSON.parse(value); } catch { isValid = false; }
+          try {
+            JSON.parse(value);
+          } catch {
+            isValid = false;
+          }
           return (
             <div key={k} className="border border-border/60 p-4">
               <div className="mb-2 flex items-center justify-between">
-                <label className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">{labels[k] || k}</label>
+                <label className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+                  {labels[k] || k}
+                </label>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
@@ -1701,15 +2442,206 @@ function HomeSectionsAdmin() {
   );
 }
 
+function FooterAdmin() {
+  const list = useServerFn(listSiteContent);
+  const save = useServerFn(upsertSiteContent);
+  const qc = useQueryClient();
+  const q = useQuery({ queryKey: ["admin", "site-content"], queryFn: () => list() });
+  const [form, setForm] = useState<FooterContent | null>(null);
+
+  const footer = form ?? normalizeFooterContent(q.data?.footer);
+  const set = <K extends keyof FooterContent>(key: K, value: FooterContent[K]) =>
+    setForm({ ...footer, [key]: value });
+  const setColumn = (index: number, patch: Partial<FooterColumn>) => {
+    set(
+      "columns",
+      footer.columns.map((column, i) => (i === index ? { ...column, ...patch } : column)),
+    );
+  };
+  const setLink = (columnIndex: number, linkIndex: number, patch: Partial<FooterLink>) => {
+    setColumn(columnIndex, {
+      items: footer.columns[columnIndex].items.map((item, i) =>
+        i === linkIndex ? { ...item, ...patch } : item,
+      ),
+    });
+  };
+  const addColumn = () => {
+    set("columns", [...footer.columns, { title: "Nueva columna", items: [] }]);
+  };
+  const removeColumn = (index: number) => {
+    set(
+      "columns",
+      footer.columns.filter((_, i) => i !== index),
+    );
+  };
+  const addLink = (columnIndex: number) => {
+    setColumn(columnIndex, {
+      items: [...footer.columns[columnIndex].items, { label: "Nuevo enlace", href: "/" }],
+    });
+  };
+  const removeLink = (columnIndex: number, linkIndex: number) => {
+    setColumn(columnIndex, {
+      items: footer.columns[columnIndex].items.filter((_, i) => i !== linkIndex),
+    });
+  };
+
+  const saveM = useMutation({
+    mutationFn: () => save({ data: { key: "footer", data: footer } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "site-content"] });
+      qc.invalidateQueries({ queryKey: ["site-content"] });
+      setForm(null);
+    },
+  });
+
+  if (q.isLoading) return <p className="text-sm text-muted-foreground">Cargando footer…</p>;
+
+  return (
+    <section>
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <div>
+          <h2 className="font-serif text-2xl">Footer</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Administra columnas, enlaces y el texto final del pie de página.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => saveM.mutate()}
+          disabled={saveM.isPending}
+          className="bg-wine px-4 py-2 text-[11px] uppercase tracking-[0.25em] text-primary-foreground hover:opacity-90 disabled:opacity-40"
+        >
+          {saveM.isPending ? "Guardando…" : "Guardar"}
+        </button>
+      </div>
+
+      <div className="grid gap-5 border border-border/60 p-5 md:grid-cols-2">
+        <Labeled label="Descripción" className="md:col-span-2">
+          <textarea
+            value={footer.description}
+            onChange={(e) => set("description", e.target.value)}
+            rows={3}
+            className="w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm outline-none focus:border-wine"
+          />
+        </Labeled>
+        <Labeled label="Copyright">
+          <input
+            value={footer.copyright}
+            onChange={(e) => set("copyright", e.target.value)}
+            className="w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm outline-none focus:border-wine"
+          />
+          <p className="mt-1 text-xs text-muted-foreground">Usa {"{year}"} para el año actual.</p>
+        </Labeled>
+        <Labeled label="Texto derecho">
+          <input
+            value={footer.tagline}
+            onChange={(e) => set("tagline", e.target.value)}
+            className="w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm outline-none focus:border-wine"
+          />
+        </Labeled>
+      </div>
+
+      <div className="mt-5 grid gap-5 lg:grid-cols-3">
+        {footer.columns.map((column, columnIndex) => (
+          <div key={columnIndex} className="border border-border/60 p-4">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <Field
+                label="Título columna"
+                value={column.title}
+                onChange={(value) => setColumn(columnIndex, { title: value })}
+                className="flex-1"
+              />
+              <button
+                type="button"
+                onClick={() => removeColumn(columnIndex)}
+                className="mt-7 text-muted-foreground hover:text-wine disabled:opacity-40"
+                disabled={footer.columns.length <= 1}
+                aria-label="Eliminar columna"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {column.items.map((item, linkIndex) => (
+                <div key={linkIndex} className="grid gap-2 border border-border/50 p-3">
+                  <Field
+                    label="Texto"
+                    value={item.label}
+                    onChange={(value) => setLink(columnIndex, linkIndex, { label: value })}
+                  />
+                  <Field
+                    label="Enlace"
+                    value={item.href ?? ""}
+                    onChange={(value) => setLink(columnIndex, linkIndex, { href: value })}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeLink(columnIndex, linkIndex)}
+                    className="inline-flex items-center justify-end gap-2 text-[11px] uppercase tracking-[0.2em] text-muted-foreground hover:text-wine"
+                  >
+                    <Trash2 className="h-4 w-4" /> Eliminar enlace
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => addLink(columnIndex)}
+              className="mt-4 inline-flex items-center gap-2 border border-foreground/30 px-4 py-2 text-[11px] uppercase tracking-[0.2em] hover:border-wine hover:text-wine"
+            >
+              <Plus className="h-4 w-4" /> Agregar enlace
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <button
+        type="button"
+        onClick={addColumn}
+        className="mt-5 inline-flex items-center gap-2 border border-foreground/30 px-4 py-2 text-[11px] uppercase tracking-[0.2em] hover:border-wine hover:text-wine"
+      >
+        <Plus className="h-4 w-4" /> Agregar columna
+      </button>
+    </section>
+  );
+}
+
 function GlobalSettingsAdmin() {
   const list = useServerFn(listSiteContent);
   const save = useServerFn(upsertSiteContent);
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["admin", "site-content"], queryFn: () => list() });
-  const initial = (q.data?.global_settings ?? {}) as any;
-  const [form, setForm] = useState<any | null>(null);
+  const initial = (q.data?.global_settings ?? {}) as GlobalSettingsForm;
+  const [form, setForm] = useState<GlobalSettingsForm | null>(null);
   const v = form ?? initial;
-  const set = (k: string, val: any) => setForm({ ...(form ?? initial), [k]: val });
+  const set = <K extends keyof GlobalSettingsForm>(k: K, val: GlobalSettingsForm[K]) =>
+    setForm({ ...(form ?? initial), [k]: val });
+  const rates = v.shipping_city_rates ?? [];
+
+  const setRate = (index: number, patch: Partial<ShippingCityRate>) => {
+    set(
+      "shipping_city_rates",
+      rates.map((rate, i) => (i === index ? { ...rate, ...patch } : rate)),
+    );
+  };
+
+  const addRate = () => {
+    const department = COLOMBIA_DEPARTMENTS[0]?.name ?? "";
+    const city = COLOMBIA_DEPARTMENTS[0]?.cities[0] ?? "";
+    set("shipping_city_rates", [
+      ...rates,
+      { department, city, price: Number(v.default_shipping_price ?? 25000) },
+    ]);
+  };
+
+  const removeRate = (index: number) => {
+    set(
+      "shipping_city_rates",
+      rates.filter((_, i) => i !== index),
+    );
+  };
 
   const saveM = useMutation({
     mutationFn: () => save({ data: { key: "global_settings", data: v } }),
@@ -1770,6 +2702,107 @@ function GlobalSettingsAdmin() {
             Aplicar a todos los productos
           </label>
         </Labeled>
+        <Labeled label="Envío gratis desde">
+          <input
+            type="number"
+            min={0}
+            step={1000}
+            value={v.free_shipping_min ?? 500000}
+            onChange={(e) => set("free_shipping_min", Number(e.target.value || 0))}
+            className="w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm outline-none focus:border-wine"
+          />
+        </Labeled>
+        <Labeled label="Valor de envío por defecto">
+          <input
+            type="number"
+            min={0}
+            step={1000}
+            value={v.default_shipping_price ?? 25000}
+            onChange={(e) => set("default_shipping_price", Number(e.target.value || 0))}
+            className="w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm outline-none focus:border-wine"
+          />
+        </Labeled>
+        <div className="md:col-span-2">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h3 className="font-serif text-xl">Tarifas por ciudad</h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Si no existe una tarifa para la ciudad seleccionada, se usa el valor por defecto.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={addRate}
+              className="inline-flex items-center gap-2 border border-foreground/30 px-4 py-2 text-[11px] uppercase tracking-[0.2em] hover:border-wine hover:text-wine"
+            >
+              <Plus className="h-4 w-4" /> Agregar tarifa
+            </button>
+          </div>
+          <div className="mt-4 space-y-3">
+            {rates.map((rate, index) => {
+              const department = COLOMBIA_DEPARTMENTS.find((d) => d.name === rate.department);
+              const cities = department?.cities ?? [];
+              return (
+                <div
+                  key={`${rate.department}-${rate.city}-${index}`}
+                  className="grid gap-3 border border-border/60 p-3 md:grid-cols-[1fr_1fr_140px_auto]"
+                >
+                  <select
+                    value={rate.department}
+                    onChange={(e) => {
+                      const nextDepartment = COLOMBIA_DEPARTMENTS.find(
+                        (d) => d.name === e.target.value,
+                      );
+                      setRate(index, {
+                        department: e.target.value,
+                        city: nextDepartment?.cities[0] ?? "",
+                      });
+                    }}
+                    className="border border-foreground/20 bg-transparent px-3 py-2 text-sm outline-none focus:border-wine"
+                  >
+                    {COLOMBIA_DEPARTMENTS.map((department) => (
+                      <option key={department.name} value={department.name}>
+                        {department.name}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={rate.city}
+                    onChange={(e) => setRate(index, { city: e.target.value })}
+                    className="border border-foreground/20 bg-transparent px-3 py-2 text-sm outline-none focus:border-wine"
+                  >
+                    {cities.map((city) => (
+                      <option key={city} value={city}>
+                        {city}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="number"
+                    min={0}
+                    step={1000}
+                    value={rate.price}
+                    onChange={(e) => setRate(index, { price: Number(e.target.value || 0) })}
+                    className="border border-foreground/20 bg-transparent px-3 py-2 text-sm outline-none focus:border-wine"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeRate(index)}
+                    aria-label="Eliminar tarifa"
+                    className="inline-flex items-center justify-center border border-foreground/20 p-2 hover:border-wine hover:text-wine"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              );
+            })}
+            {rates.length === 0 && (
+              <p className="border border-dashed border-border p-4 text-sm text-muted-foreground">
+                No hay tarifas por ciudad. Se aplicará el valor de envío por defecto.
+              </p>
+            )}
+          </div>
+        </div>
         <div className="md:col-span-2 flex justify-end">
           <button
             disabled={saveM.isPending}
@@ -1809,7 +2842,9 @@ function CouponsAdmin() {
       <div className="flex items-end justify-between">
         <h2 className="font-serif text-2xl">Cupones</h2>
         <button
-          onClick={() => setEditing({ kind: "percent", value: 10, is_active: true, min_subtotal: 0 })}
+          onClick={() =>
+            setEditing({ kind: "percent", value: 10, is_active: true, min_subtotal: 0 })
+          }
           className="inline-flex items-center gap-2 bg-wine px-4 py-2 text-[11px] uppercase tracking-[0.25em] text-primary-foreground hover:opacity-90"
         >
           <Plus className="h-4 w-4" /> Nuevo cupón
@@ -1833,29 +2868,36 @@ function CouponsAdmin() {
             {(q.data ?? []).map((c: any) => (
               <tr key={c.id} className="border-t border-border/60">
                 <td className="p-3 font-mono text-xs">{c.code}</td>
-                <td className="p-3">
-                  {c.kind === "percent" ? `${c.value}%` : formatCOP(c.value)}
-                </td>
+                <td className="p-3">{c.kind === "percent" ? `${c.value}%` : formatCOP(c.value)}</td>
                 <td className="p-3 text-muted-foreground">
                   {c.min_subtotal ? formatCOP(c.min_subtotal) : "—"}
                 </td>
                 <td className="p-3 text-muted-foreground">
-                  {c.used_count}{c.max_uses ? ` / ${c.max_uses}` : ""}
+                  {c.used_count}
+                  {c.max_uses ? ` / ${c.max_uses}` : ""}
                 </td>
                 <td className="p-3 text-muted-foreground">
                   {c.expires_at ? new Date(c.expires_at).toLocaleDateString("es-CO") : "—"}
                 </td>
                 <td className="p-3">
-                  <span className={`px-2 py-1 text-[10px] uppercase tracking-wider ${c.is_active ? "bg-secondary" : "bg-muted text-muted-foreground"}`}>
+                  <span
+                    className={`px-2 py-1 text-[10px] uppercase tracking-wider ${c.is_active ? "bg-secondary" : "bg-muted text-muted-foreground"}`}
+                  >
                     {c.is_active ? "Activo" : "Inactivo"}
                   </span>
                 </td>
                 <td className="p-3 text-right">
-                  <button onClick={() => setEditing(c)} className="mr-2 p-2 hover:text-wine" aria-label="Editar">
+                  <button
+                    onClick={() => setEditing(c)}
+                    className="mr-2 p-2 hover:text-wine"
+                    aria-label="Editar"
+                  >
                     <Pencil className="h-4 w-4" />
                   </button>
                   <button
-                    onClick={() => { if (confirm(`¿Eliminar cupón ${c.code}?`)) delM.mutate(c.id); }}
+                    onClick={() => {
+                      if (confirm(`¿Eliminar cupón ${c.code}?`)) delM.mutate(c.id);
+                    }}
                     className="p-2 hover:text-wine"
                     aria-label="Eliminar"
                   >
@@ -1865,7 +2907,11 @@ function CouponsAdmin() {
               </tr>
             ))}
             {(q.data ?? []).length === 0 && (
-              <tr><td colSpan={7} className="p-6 text-center text-sm text-muted-foreground">No hay cupones aún.</td></tr>
+              <tr>
+                <td colSpan={7} className="p-6 text-center text-sm text-muted-foreground">
+                  No hay cupones aún.
+                </td>
+              </tr>
             )}
           </tbody>
         </table>
@@ -1885,7 +2931,11 @@ function CouponsAdmin() {
 }
 
 function CouponEditor({
-  initial, onCancel, onSubmit, saving, error,
+  initial,
+  onCancel,
+  onSubmit,
+  saving,
+  error,
 }: {
   initial: any;
   onCancel: () => void;
@@ -1899,14 +2949,16 @@ function CouponEditor({
     kind: (initial.kind ?? "percent") as "percent" | "fixed",
     value: initial.value ?? 10,
     min_subtotal: initial.min_subtotal ?? 0,
-    max_uses: initial.max_uses ?? null as number | null,
+    max_uses: initial.max_uses ?? (null as number | null),
     expires_at: initial.expires_at ? String(initial.expires_at).slice(0, 10) : "",
     is_active: initial.is_active ?? true,
   });
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = ""; };
+    return () => {
+      document.body.style.overflow = "";
+    };
   }, []);
 
   return (
@@ -1933,16 +2985,21 @@ function CouponEditor({
           className="mt-6 grid gap-4 sm:grid-cols-2"
         >
           <div className="sm:col-span-2">
-            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Código</label>
+            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+              Código
+            </label>
             <input
               value={v.code}
               onChange={(e) => setV({ ...v, code: e.target.value.toUpperCase() })}
-              required pattern="[A-Za-z0-9_-]+"
+              required
+              pattern="[A-Za-z0-9_-]+"
               className="mt-2 w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm uppercase focus:border-wine"
             />
           </div>
           <div>
-            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Tipo</label>
+            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+              Tipo
+            </label>
             <select
               value={v.kind}
               onChange={(e) => setV({ ...v, kind: e.target.value as any })}
@@ -1957,38 +3014,54 @@ function CouponEditor({
               Valor {v.kind === "percent" ? "(%)" : "(COP)"}
             </label>
             <input
-              type="number" min={1} value={v.value}
+              type="number"
+              min={1}
+              value={v.value}
               onChange={(e) => setV({ ...v, value: Number(e.target.value) })}
               className="mt-2 w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm focus:border-wine"
             />
           </div>
           <div>
-            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Mínimo compra (COP)</label>
+            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+              Mínimo compra (COP)
+            </label>
             <input
-              type="number" min={0} value={v.min_subtotal}
+              type="number"
+              min={0}
+              value={v.min_subtotal}
               onChange={(e) => setV({ ...v, min_subtotal: Number(e.target.value) })}
               className="mt-2 w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm focus:border-wine"
             />
           </div>
           <div>
-            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Usos máximos (opcional)</label>
+            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+              Usos máximos (opcional)
+            </label>
             <input
-              type="number" min={1} value={v.max_uses ?? ""}
-              onChange={(e) => setV({ ...v, max_uses: e.target.value ? Number(e.target.value) : null })}
+              type="number"
+              min={1}
+              value={v.max_uses ?? ""}
+              onChange={(e) =>
+                setV({ ...v, max_uses: e.target.value ? Number(e.target.value) : null })
+              }
               className="mt-2 w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm focus:border-wine"
             />
           </div>
           <div>
-            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Vence (opcional)</label>
+            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+              Vence (opcional)
+            </label>
             <input
-              type="date" value={v.expires_at}
+              type="date"
+              value={v.expires_at}
               onChange={(e) => setV({ ...v, expires_at: e.target.value })}
               className="mt-2 w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm focus:border-wine"
             />
           </div>
           <label className="sm:col-span-2 flex items-center gap-2 text-sm">
             <input
-              type="checkbox" checked={v.is_active}
+              type="checkbox"
+              checked={v.is_active}
               onChange={(e) => setV({ ...v, is_active: e.target.checked })}
             />
             Activo
@@ -1997,11 +3070,16 @@ function CouponEditor({
           {error && <p className="sm:col-span-2 text-sm text-destructive">{error}</p>}
 
           <div className="sm:col-span-2 mt-4 flex justify-end gap-3">
-            <button type="button" onClick={onCancel} className="px-5 py-2 text-[11px] uppercase tracking-[0.2em] text-muted-foreground hover:text-wine">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="px-5 py-2 text-[11px] uppercase tracking-[0.2em] text-muted-foreground hover:text-wine"
+            >
               Cancelar
             </button>
             <button
-              type="submit" disabled={saving}
+              type="submit"
+              disabled={saving}
               className="bg-wine px-6 py-3 text-[11px] uppercase tracking-[0.25em] text-primary-foreground hover:opacity-90 disabled:opacity-50"
             >
               {saving ? "Guardando…" : "Guardar"}
@@ -2019,10 +3097,10 @@ function SellersAdmin() {
   const del = useServerFn(deleteSeller);
   const listOrders = useServerFn(adminListOrders);
   const qc = useQueryClient();
-  
+
   const q = useQuery({ queryKey: ["admin", "sellers"], queryFn: () => list() });
   const ordersQ = useQuery({ queryKey: ["admin", "orders"], queryFn: () => listOrders() });
-  
+
   const [editing, setEditing] = useState<any | null>(null);
 
   const saveM = useMutation({
@@ -2041,11 +3119,14 @@ function SellersAdmin() {
     const paidOrCompleted = (s: string) =>
       s === "paid" || s === "shipped" || s === "delivered" || s === "confirmed";
     const sellerOrders = (ordersQ.data ?? []).filter(
-      (o: any) => o.seller_id === sellerId && paidOrCompleted(o.status)
+      (o: any) => o.seller_id === sellerId && paidOrCompleted(o.status),
     );
     const count = sellerOrders.length;
     const totalAmount = sellerOrders.reduce((sum: number, o: any) => sum + Number(o.total ?? 0), 0);
-    const commission = sellerOrders.reduce((sum: number, o: any) => sum + Number(o.seller_commission_earned ?? 0), 0);
+    const commission = sellerOrders.reduce(
+      (sum: number, o: any) => sum + Number(o.seller_commission_earned ?? 0),
+      0,
+    );
     return { count, totalAmount, commission };
   };
 
@@ -2092,16 +3173,24 @@ function SellersAdmin() {
                   <td className="p-3 font-medium">{formatCOP(metrics.totalAmount)}</td>
                   <td className="p-3 text-wine font-medium">{formatCOP(metrics.commission)}</td>
                   <td className="p-3">
-                    <span className={`px-2 py-1 text-[10px] uppercase tracking-wider ${s.active ? "bg-secondary text-foreground" : "bg-muted text-muted-foreground"}`}>
+                    <span
+                      className={`px-2 py-1 text-[10px] uppercase tracking-wider ${s.active ? "bg-secondary text-foreground" : "bg-muted text-muted-foreground"}`}
+                    >
                       {s.active ? "Activo" : "Inactivo"}
                     </span>
                   </td>
                   <td className="p-3 text-right">
-                    <button onClick={() => setEditing(s)} className="mr-2 p-2 hover:text-wine" aria-label="Editar">
+                    <button
+                      onClick={() => setEditing(s)}
+                      className="mr-2 p-2 hover:text-wine"
+                      aria-label="Editar"
+                    >
                       <Pencil className="h-4 w-4" />
                     </button>
                     <button
-                      onClick={() => { if (confirm(`¿Eliminar al asesor ${s.name}?`)) delM.mutate(s.id); }}
+                      onClick={() => {
+                        if (confirm(`¿Eliminar al asesor ${s.name}?`)) delM.mutate(s.id);
+                      }}
                       className="p-2 hover:text-wine"
                       aria-label="Eliminar"
                     >
@@ -2112,7 +3201,11 @@ function SellersAdmin() {
               );
             })}
             {(q.data ?? []).length === 0 && (
-              <tr><td colSpan={8} className="p-6 text-center text-sm text-muted-foreground">No hay asesores creados aún.</td></tr>
+              <tr>
+                <td colSpan={8} className="p-6 text-center text-sm text-muted-foreground">
+                  No hay asesores creados aún.
+                </td>
+              </tr>
             )}
           </tbody>
         </table>
@@ -2132,7 +3225,11 @@ function SellersAdmin() {
 }
 
 function SellerEditor({
-  initial, onCancel, onSubmit, saving, error,
+  initial,
+  onCancel,
+  onSubmit,
+  saving,
+  error,
 }: {
   initial: any;
   onCancel: () => void;
@@ -2179,7 +3276,9 @@ function SellerEditor({
           className="mt-6 space-y-4"
         >
           <div>
-            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Nombre completo</label>
+            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+              Nombre completo
+            </label>
             <input
               value={v.name}
               onChange={(e) => set("name", e.target.value)}
@@ -2189,7 +3288,9 @@ function SellerEditor({
           </div>
 
           <div>
-            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Código de Asesor</label>
+            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+              Código de Asesor
+            </label>
             <input
               value={v.code}
               onChange={(e) => set("code", e.target.value.toUpperCase())}
@@ -2200,7 +3301,9 @@ function SellerEditor({
           </div>
 
           <div>
-            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Porcentaje de Comisión (%)</label>
+            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+              Porcentaje de Comisión (%)
+            </label>
             <input
               type="number"
               min={0}
@@ -2225,7 +3328,11 @@ function SellerEditor({
           {error && <p className="text-sm text-wine">{error}</p>}
 
           <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onCancel} className="px-4 py-2 text-[11px] uppercase tracking-[0.25em] text-muted-foreground hover:text-wine">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="px-4 py-2 text-[11px] uppercase tracking-[0.25em] text-muted-foreground hover:text-wine"
+            >
               Cancelar
             </button>
             <button
@@ -2242,10 +3349,20 @@ function SellerEditor({
   );
 }
 
-function Labeled({ label, children, className = "" }: { label: string; children: React.ReactNode; className?: string }) {
+function Labeled({
+  label,
+  children,
+  className = "",
+}: {
+  label: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
     <div className={className}>
-      <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">{label}</label>
+      <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+        {label}
+      </label>
       <div className="mt-2">{children}</div>
     </div>
   );
@@ -2291,7 +3408,9 @@ function DashboardAdmin() {
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
         {cards.map((c) => (
           <div key={c.label} className="border border-border/60 p-4">
-            <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">{c.label}</div>
+            <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+              {c.label}
+            </div>
             <div className="mt-2 font-serif text-lg">{c.value}</div>
           </div>
         ))}
@@ -2304,10 +3423,17 @@ function DashboardAdmin() {
           </h3>
           <div className="flex h-40 items-end gap-1">
             {days.map((d) => (
-              <div key={d.date} className="flex flex-1 flex-col items-center gap-1" title={`${d.date}: ${formatCOP(d.revenue)} · ${d.orders} pedidos`}>
+              <div
+                key={d.date}
+                className="flex flex-1 flex-col items-center gap-1"
+                title={`${d.date}: ${formatCOP(d.revenue)} · ${d.orders} pedidos`}
+              >
                 <div
                   className="w-full bg-wine/80"
-                  style={{ height: `${(d.revenue / maxRev) * 100}%`, minHeight: d.revenue > 0 ? 2 : 0 }}
+                  style={{
+                    height: `${(d.revenue / maxRev) * 100}%`,
+                    minHeight: d.revenue > 0 ? 2 : 0,
+                  }}
                 />
               </div>
             ))}
@@ -2319,14 +3445,18 @@ function DashboardAdmin() {
         </div>
 
         <div className="border border-border/60 p-5">
-          <h3 className="mb-4 text-sm uppercase tracking-[0.18em] text-muted-foreground">Pedidos por estado</h3>
+          <h3 className="mb-4 text-sm uppercase tracking-[0.18em] text-muted-foreground">
+            Pedidos por estado
+          </h3>
           <ul className="space-y-2 text-sm">
-            {(["pending", "confirmed", "paid", "shipped", "delivered", "cancelled"] as const).map((s) => (
-              <li key={s} className="flex items-center justify-between">
-                <span className="text-muted-foreground">{STATUS_LABEL[s]}</span>
-                <span className="font-medium">{ordersByStatus[s] ?? 0}</span>
-              </li>
-            ))}
+            {(["pending", "confirmed", "paid", "shipped", "delivered", "cancelled"] as const).map(
+              (s) => (
+                <li key={s} className="flex items-center justify-between">
+                  <span className="text-muted-foreground">{STATUS_LABEL[s]}</span>
+                  <span className="font-medium">{ordersByStatus[s] ?? 0}</span>
+                </li>
+              ),
+            )}
           </ul>
         </div>
       </div>
@@ -2353,15 +3483,21 @@ function DashboardAdmin() {
         </div>
 
         <div className="border border-border/60 p-5">
-          <h3 className="mb-4 text-sm uppercase tracking-[0.18em] text-muted-foreground">Stock bajo</h3>
+          <h3 className="mb-4 text-sm uppercase tracking-[0.18em] text-muted-foreground">
+            Stock bajo
+          </h3>
           {lowStock.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Todo el inventario tiene stock saludable.</p>
+            <p className="text-sm text-muted-foreground">
+              Todo el inventario tiene stock saludable.
+            </p>
           ) : (
             <ul className="divide-y divide-border/60 text-sm">
               {lowStock.map((p) => (
                 <li key={p.id} className="flex items-center justify-between py-2">
                   <span className="truncate pr-3">{p.name}</span>
-                  <span className={`shrink-0 ${(p.stock ?? 0) === 0 ? "text-destructive" : "text-wine"}`}>
+                  <span
+                    className={`shrink-0 ${(p.stock ?? 0) === 0 ? "text-destructive" : "text-wine"}`}
+                  >
                     {p.stock ?? 0} uds
                   </span>
                 </li>
@@ -2421,7 +3557,9 @@ function TaxonomiesAdmin({ taxonomies }: { taxonomies: ProductTaxonomy[] }) {
             key={t.value}
             onClick={() => setFilterType(t.value as any)}
             className={`whitespace-nowrap px-4 py-2 text-[11px] uppercase tracking-[0.25em] transition-colors ${
-              filterType === t.value ? "bg-foreground text-background" : "bg-secondary text-foreground hover:bg-foreground/10"
+              filterType === t.value
+                ? "bg-foreground text-background"
+                : "bg-secondary text-foreground hover:bg-foreground/10"
             }`}
           >
             {t.label}
@@ -2430,17 +3568,33 @@ function TaxonomiesAdmin({ taxonomies }: { taxonomies: ProductTaxonomy[] }) {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-        {filtered.length === 0 && <p className="col-span-full text-sm text-muted-foreground">No hay {TAXONOMY_TYPES.find(t=>t.value===filterType)?.label.toLowerCase()}s creados.</p>}
+        {filtered.length === 0 && (
+          <p className="col-span-full text-sm text-muted-foreground">
+            No hay {TAXONOMY_TYPES.find((t) => t.value === filterType)?.label.toLowerCase()}s
+            creados.
+          </p>
+        )}
         {filtered.map((t) => (
-          <div key={t.id} className="flex items-center justify-between border border-border/60 bg-secondary/20 px-4 py-3">
+          <div
+            key={t.id}
+            className="flex items-center justify-between border border-border/60 bg-secondary/20 px-4 py-3"
+          >
             <span className="text-sm font-medium">{t.name}</span>
             <div className="flex items-center gap-1">
-              <button onClick={() => setEditing(t)} className="p-1.5 text-muted-foreground hover:text-wine" aria-label="Editar">
+              <button
+                onClick={() => setEditing(t)}
+                className="p-1.5 text-muted-foreground hover:text-wine"
+                aria-label="Editar"
+              >
                 <Pencil className="h-4 w-4" />
               </button>
               <button
                 onClick={() => {
-                  if (confirm(`¿Eliminar "${t.name}"? Los productos que lo tengan asignado perderán este atributo.`)) {
+                  if (
+                    confirm(
+                      `¿Eliminar "${t.name}"? Los productos que lo tengan asignado perderán este atributo.`,
+                    )
+                  ) {
                     delM.mutate(t.id);
                   }
                 }}
@@ -2458,10 +3612,20 @@ function TaxonomiesAdmin({ taxonomies }: { taxonomies: ProductTaxonomy[] }) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4">
           <div className="w-full max-w-sm bg-background p-6 shadow-xl">
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="font-serif text-xl">{editing.id ? "Editar" : "Nuevo"} {TAXONOMY_TYPES.find(t=>t.value===filterType)?.label}</h3>
-              <button onClick={() => setEditing(null)} className="p-1 hover:text-wine"><X className="h-5 w-5" /></button>
+              <h3 className="font-serif text-xl">
+                {editing.id ? "Editar" : "Nuevo"}{" "}
+                {TAXONOMY_TYPES.find((t) => t.value === filterType)?.label}
+              </h3>
+              <button onClick={() => setEditing(null)} className="p-1 hover:text-wine">
+                <X className="h-5 w-5" />
+              </button>
             </div>
-            <form onSubmit={(e) => { e.preventDefault(); saveM.mutate(editing); }}>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                saveM.mutate(editing);
+              }}
+            >
               <Field
                 label="Nombre"
                 value={editing.name ?? ""}
@@ -2469,8 +3633,18 @@ function TaxonomiesAdmin({ taxonomies }: { taxonomies: ProductTaxonomy[] }) {
                 required
               />
               <div className="mt-6 flex justify-end gap-3">
-                <button type="button" onClick={() => setEditing(null)} className="px-4 py-2 text-xs uppercase tracking-widest text-muted-foreground hover:text-wine">Cancelar</button>
-                <button type="submit" disabled={saveM.isPending} className="bg-wine px-4 py-2 text-xs uppercase tracking-widest text-primary-foreground hover:opacity-90 disabled:opacity-50">
+                <button
+                  type="button"
+                  onClick={() => setEditing(null)}
+                  className="px-4 py-2 text-xs uppercase tracking-widest text-muted-foreground hover:text-wine"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={saveM.isPending}
+                  className="bg-wine px-4 py-2 text-xs uppercase tracking-widest text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                >
                   Guardar
                 </button>
               </div>

@@ -3,6 +3,9 @@ import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { applyPromotions, type ActivePromotion } from "./promotions.functions";
+import { calculateShipping, splitStoredCity, type ShippingSettings } from "./shipping";
+
+type SupabaseClientLike = Pick<typeof supabaseAdmin, "from">;
 
 const createOrderInput = z.object({
   customer_name: z.string().min(1).max(255),
@@ -29,7 +32,11 @@ export const createOrder = createServerFn({ method: "POST" })
     const ids = Array.from(new Set(data.items.map((i) => i.product_id)));
     const nowIso = new Date().toISOString();
 
-    const [{ data: products, error: pErr }, { data: promos, error: prErr }] = await Promise.all([
+    const [
+      { data: products, error: pErr },
+      { data: promos, error: prErr },
+      { data: settingsRow, error: settingsErr },
+    ] = await Promise.all([
       supabaseAdmin
         .from("products")
         .select("id,name,slug,image,price,discount_price,stock,is_active")
@@ -41,9 +48,11 @@ export const createOrder = createServerFn({ method: "POST" })
         .lte("starts_at", nowIso)
         .or(`ends_at.is.null,ends_at.gt.${nowIso}`)
         .order("priority", { ascending: false }),
+      supabaseAdmin.from("site_content").select("data").eq("key", "global_settings").maybeSingle(),
     ]);
     if (pErr) throw new Error(pErr.message);
     if (prErr) throw new Error(prErr.message);
+    if (settingsErr) throw new Error(settingsErr.message);
 
     const promoList = (promos ?? []) as ActivePromotion[];
     const productMap = new Map((products ?? []).map((p) => [p.id, p]));
@@ -67,7 +76,13 @@ export const createOrder = createServerFn({ method: "POST" })
     });
 
     const subtotal = rows.reduce((s, r) => s + r.subtotal, 0);
-    const shipping = subtotal > 0 && subtotal < 500000 ? 25000 : 0;
+    const { city, department } = splitStoredCity(data.city);
+    const shipping = calculateShipping(
+      subtotal,
+      city,
+      department,
+      settingsRow?.data as ShippingSettings | null,
+    );
     const total = subtotal + shipping;
 
     const { data: order, error: oErr } = await supabaseAdmin
@@ -109,7 +124,7 @@ export const createOrder = createServerFn({ method: "POST" })
 
 // ---------- Admin ----------
 
-async function assertAdmin(supabase: any, userId: string) {
+async function assertAdmin(supabase: SupabaseClientLike, userId: string) {
   const { data, error } = await supabase
     .from("user_roles")
     .select("role")

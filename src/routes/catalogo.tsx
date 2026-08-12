@@ -1,12 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { mapProduct, type Product } from "@/data/products";
 import { listActiveProducts } from "@/lib/products.functions";
 import { listActiveCategories } from "@/lib/categories.functions";
 import { ProductCard } from "@/components/ProductCard";
-import { Search as SearchIcon, X } from "lucide-react";
+import { Search as SearchIcon, SlidersHorizontal, X } from "lucide-react";
 
 const productsQueryOptions = queryOptions({
   queryKey: ["products", "active"],
@@ -22,6 +22,9 @@ type SortOpt = "relevance" | "price-asc" | "price-desc" | "name";
 type Search = { cat?: string; q?: string; sort?: SortOpt };
 
 const SORT_VALUES: SortOpt[] = ["relevance", "price-asc", "price-desc", "name"];
+const DEFAULT_MAX_PRICE = 20000000;
+const PRICE_STEP = 50000;
+const PRODUCTS_PER_PAGE = 12;
 
 export const Route = createFileRoute("/catalogo")({
   validateSearch: (s: Record<string, unknown>): Search => ({
@@ -35,10 +38,18 @@ export const Route = createFileRoute("/catalogo")({
   head: () => ({
     meta: [
       { title: "Catálogo de Relojes y Joyas | Rubí Relojería & Joyería" },
-      { name: "description", content: "Explora nuestra colección completa de relojes suizos, joyas de oro, plata y piezas de moda. Todas las marcas: Rolex, Omega, Tissot, Pandora y más." },
+      {
+        name: "description",
+        content:
+          "Explora nuestra colección completa de relojes suizos, joyas de oro, plata y piezas de moda. Todas las marcas: Rolex, Omega, Tissot, Pandora y más.",
+      },
       { name: "robots", content: "index, follow" },
       { property: "og:title", content: "Catálogo de Relojes y Joyas | Rubí" },
-      { property: "og:description", content: "Explora nuestra colección completa de relojes suizos, joyas de oro, plata y piezas de moda premium." },
+      {
+        property: "og:description",
+        content:
+          "Explora nuestra colección completa de relojes suizos, joyas de oro, plata y piezas de moda premium.",
+      },
       { property: "og:url", content: "https://rubi-joyeria.com/catalogo" },
       { property: "og:type", content: "website" },
       { property: "og:locale", content: "es_CO" },
@@ -77,11 +88,30 @@ function Catalogo() {
   const navigate = useNavigate({ from: "/catalogo" });
   const { data: products } = useSuspenseQuery(productsQueryOptions);
   const { data: categories } = useSuspenseQuery(categoriesQueryOptions);
-  const brands = useMemo(() => Array.from(new Set(products.map((p) => p.brand).filter(Boolean) as string[])), [products]);
-  const materials = useMemo(() => Array.from(new Set(products.map((p) => p.material).filter(Boolean) as string[])), [products]);
-  const colors = useMemo(() => Array.from(new Set(products.map((p) => p.color).filter(Boolean) as string[])), [products]);
-  const usageTypes = useMemo(() => Array.from(new Set(products.map((p) => p.usageType).filter(Boolean) as string[])), [products]);
-  const genders = useMemo(() => Array.from(new Set(products.map((p) => p.gender).filter(Boolean) as string[])), [products]);
+  const brands = useMemo(
+    () => Array.from(new Set(products.map((p) => p.brand).filter(Boolean) as string[])),
+    [products],
+  );
+  const materials = useMemo(
+    () => Array.from(new Set(products.map((p) => p.material).filter(Boolean) as string[])),
+    [products],
+  );
+  const colors = useMemo(
+    () => Array.from(new Set(products.map((p) => p.color).filter(Boolean) as string[])),
+    [products],
+  );
+  const usageTypes = useMemo(
+    () => Array.from(new Set(products.map((p) => p.usageType).filter(Boolean) as string[])),
+    [products],
+  );
+  const genders = useMemo(
+    () => Array.from(new Set(products.map((p) => p.gender).filter(Boolean) as string[])),
+    [products],
+  );
+  const priceLimit = useMemo(() => {
+    const highestPrice = Math.max(...products.map((p) => p.discountPrice ?? p.price), 0);
+    return Math.max(DEFAULT_MAX_PRICE, Math.ceil(highestPrice / PRICE_STEP) * PRICE_STEP);
+  }, [products]);
 
   const [category, setCategory] = useState<string>(cat ?? "todos");
   const [brand, setBrand] = useState<string>("todas");
@@ -89,48 +119,98 @@ function Catalogo() {
   const [color, setColor] = useState<string>("todos");
   const [usageType, setUsageType] = useState<string>("todos");
   const [gender, setGender] = useState<string>("todos");
-  const [maxPrice, setMaxPrice] = useState<number>(3000000);
+  const [maxPrice, setMaxPrice] = useState<number>(priceLimit);
   const [query, setQuery] = useState<string>(q ?? "");
+  const [page, setPage] = useState(1);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+
+  useEffect(() => {
+    setMaxPrice((current) => Math.max(current, priceLimit));
+  }, [priceLimit]);
 
   const currentSort: SortOpt = sort ?? "relevance";
-  const setSort = (s: SortOpt) =>
+  const setSort = (s: SortOpt) => {
+    setPage(1);
     navigate({ search: (prev: Search) => ({ ...prev, sort: s === "relevance" ? undefined : s }) });
+  };
 
   const applyQuery = (value: string) => {
     const v = value.trim();
+    setPage(1);
     navigate({ search: (prev: Search) => ({ ...prev, q: v.length > 0 ? v : undefined }) });
   };
 
-  const filtered = useMemo(
-    (): Product[] => {
-      const term = (q ?? "").trim().toLowerCase();
-      const result = products.filter((p) => {
-        if (category !== "todos" && p.category !== category) return false;
-        if (brand !== "todas" && p.brand !== brand) return false;
-        if (material !== "todos" && p.material !== material) return false;
-        if (color !== "todos" && p.color !== color) return false;
-        if (usageType !== "todos" && p.usageType !== usageType) return false;
-        if (gender !== "todos" && p.gender !== gender) return false;
-        const price = p.discountPrice ?? p.price;
-        if (price > maxPrice) return false;
-        if (term.length > 0) {
-          const hay = `${p.name} ${p.brand} ${p.material ?? ""} ${p.color ?? ""} ${p.usageType ?? ""} ${p.gender ?? ""} ${p.categoryLabel ?? ""}`.toLowerCase();
-          if (!hay.includes(term)) return false;
-        }
-        return true;
-      });
-      const sorted = [...result];
-      if (currentSort === "price-asc") {
-        sorted.sort((a, b) => (a.discountPrice ?? a.price) - (b.discountPrice ?? b.price));
-      } else if (currentSort === "price-desc") {
-        sorted.sort((a, b) => (b.discountPrice ?? b.price) - (a.discountPrice ?? a.price));
-      } else if (currentSort === "name") {
-        sorted.sort((a, b) => a.name.localeCompare(b.name, "es"));
+  const setFilter = (setter: (value: string) => void, value: string) => {
+    setPage(1);
+    setter(value);
+  };
+
+  const setPriceFilter = (value: number) => {
+    setPage(1);
+    setMaxPrice(value);
+  };
+
+  const activeFilterCount = [
+    category !== "todos",
+    brand !== "todas",
+    material !== "todos",
+    color !== "todos",
+    usageType !== "todos",
+    gender !== "todos",
+    maxPrice < priceLimit,
+  ].filter(Boolean).length;
+
+  const resetFilters = () => {
+    setPage(1);
+    setCategory(cat ?? "todos");
+    setBrand("todas");
+    setMaterial("todos");
+    setColor("todos");
+    setUsageType("todos");
+    setGender("todos");
+    setMaxPrice(priceLimit);
+  };
+
+  const filtered = useMemo((): Product[] => {
+    const term = (q ?? "").trim().toLowerCase();
+    const result = products.filter((p) => {
+      if (category !== "todos" && p.category !== category) return false;
+      if (brand !== "todas" && p.brand !== brand) return false;
+      if (material !== "todos" && p.material !== material) return false;
+      if (color !== "todos" && p.color !== color) return false;
+      if (usageType !== "todos" && p.usageType !== usageType) return false;
+      if (gender !== "todos" && p.gender !== gender) return false;
+      const price = p.discountPrice ?? p.price;
+      if (price > maxPrice) return false;
+      if (term.length > 0) {
+        const hay =
+          `${p.name} ${p.brand} ${p.material ?? ""} ${p.color ?? ""} ${p.usageType ?? ""} ${p.gender ?? ""} ${p.categoryLabel ?? ""}`.toLowerCase();
+        if (!hay.includes(term)) return false;
       }
-      return sorted;
-    },
-    [products, category, brand, material, color, usageType, gender, maxPrice, q, currentSort],
+      return true;
+    });
+    const sorted = [...result];
+    if (currentSort === "price-asc") {
+      sorted.sort((a, b) => (a.discountPrice ?? a.price) - (b.discountPrice ?? b.price));
+    } else if (currentSort === "price-desc") {
+      sorted.sort((a, b) => (b.discountPrice ?? b.price) - (a.discountPrice ?? a.price));
+    } else if (currentSort === "name") {
+      sorted.sort((a, b) => a.name.localeCompare(b.name, "es"));
+    }
+    return sorted;
+  }, [products, category, brand, material, color, usageType, gender, maxPrice, q, currentSort]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PRODUCTS_PER_PAGE));
+  const currentPage = Math.min(page, totalPages);
+  const paginated = filtered.slice(
+    (currentPage - 1) * PRODUCTS_PER_PAGE,
+    currentPage * PRODUCTS_PER_PAGE,
   );
+  const pageNumbers = Array.from({ length: totalPages }, (_, index) => index + 1);
+
+  useEffect(() => {
+    setPage((current) => Math.min(current, totalPages));
+  }, [totalPages]);
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-16 md:px-10 md:py-24">
@@ -190,70 +270,128 @@ function Catalogo() {
         </div>
       </div>
 
+      <div className="mb-8 flex items-center justify-between gap-3 md:hidden">
+        <button
+          type="button"
+          onClick={() => setFiltersOpen((open) => !open)}
+          className="inline-flex flex-1 items-center justify-center gap-2 border border-foreground/20 px-4 py-3 text-[11px] uppercase tracking-[0.22em] transition-colors hover:border-wine hover:text-wine"
+          aria-expanded={filtersOpen}
+        >
+          <SlidersHorizontal className="h-4 w-4" strokeWidth={1.5} />
+          Filtros{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+        </button>
+        {activeFilterCount > 0 && (
+          <button
+            type="button"
+            onClick={resetFilters}
+            className="px-3 py-3 text-[11px] uppercase tracking-[0.18em] text-muted-foreground hover:text-wine"
+          >
+            Limpiar
+          </button>
+        )}
+      </div>
+
       <div className="grid gap-12 md:grid-cols-[220px_1fr]">
         {/* Filtros */}
-        <aside className="space-y-8 text-sm">
+        <aside
+          className={`${filtersOpen ? "block" : "hidden"} space-y-8 border border-border/60 bg-secondary/20 p-5 text-sm md:block md:border-0 md:bg-transparent md:p-0`}
+        >
+          <div className="flex items-center justify-between md:hidden">
+            <p className="text-[11px] uppercase tracking-[0.25em] text-muted-foreground">
+              Filtrar catálogo
+            </p>
+            {activeFilterCount > 0 && (
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="text-[11px] uppercase tracking-[0.18em] text-wine"
+              >
+                Limpiar
+              </button>
+            )}
+          </div>
           <FilterGroup label="Categoría">
-            <FilterOption active={category === "todos"} onClick={() => setCategory("todos")}>
+            <FilterOption
+              active={category === "todos"}
+              onClick={() => setFilter(setCategory, "todos")}
+            >
               Todos
             </FilterOption>
             {categories.map((c) => (
-              <FilterOption key={c.slug} active={category === c.slug} onClick={() => setCategory(c.slug)}>
+              <FilterOption
+                key={c.slug}
+                active={category === c.slug}
+                onClick={() => setFilter(setCategory, c.slug)}
+              >
                 {c.name}
               </FilterOption>
             ))}
           </FilterGroup>
 
           <FilterGroup label="Marca">
-            <FilterOption active={brand === "todas"} onClick={() => setBrand("todas")}>
+            <FilterOption active={brand === "todas"} onClick={() => setFilter(setBrand, "todas")}>
               Todas
             </FilterOption>
             {brands.map((b) => (
-              <FilterOption key={b} active={brand === b} onClick={() => setBrand(b)}>
+              <FilterOption key={b} active={brand === b} onClick={() => setFilter(setBrand, b)}>
                 {b}
               </FilterOption>
             ))}
           </FilterGroup>
 
           <FilterGroup label="Material">
-            <FilterOption active={material === "todos"} onClick={() => setMaterial("todos")}>
+            <FilterOption
+              active={material === "todos"}
+              onClick={() => setFilter(setMaterial, "todos")}
+            >
               Todos
             </FilterOption>
             {materials.map((m) => (
-              <FilterOption key={m} active={material === m} onClick={() => setMaterial(m)}>
+              <FilterOption
+                key={m}
+                active={material === m}
+                onClick={() => setFilter(setMaterial, m)}
+              >
                 {m}
               </FilterOption>
             ))}
           </FilterGroup>
 
           <FilterGroup label="Color">
-            <FilterOption active={color === "todos"} onClick={() => setColor("todos")}>
+            <FilterOption active={color === "todos"} onClick={() => setFilter(setColor, "todos")}>
               Todos
             </FilterOption>
             {colors.map((c) => (
-              <FilterOption key={c} active={color === c} onClick={() => setColor(c)}>
+              <FilterOption key={c} active={color === c} onClick={() => setFilter(setColor, c)}>
                 {c}
               </FilterOption>
             ))}
           </FilterGroup>
 
           <FilterGroup label="Tipo de Uso">
-            <FilterOption active={usageType === "todos"} onClick={() => setUsageType("todos")}>
+            <FilterOption
+              active={usageType === "todos"}
+              onClick={() => setFilter(setUsageType, "todos")}
+            >
               Todos
             </FilterOption>
             {usageTypes.map((u) => (
-              <FilterOption key={u} active={usageType === u} onClick={() => setUsageType(u)}>
+              <FilterOption
+                key={u}
+                active={usageType === u}
+                onClick={() => setFilter(setUsageType, u)}
+              >
                 {u}
               </FilterOption>
             ))}
           </FilterGroup>
 
           <FilterGroup label="Género">
-            <FilterOption active={gender === "todos"} onClick={() => setGender("todos")}>
+            <FilterOption active={gender === "todos"} onClick={() => setFilter(setGender, "todos")}>
               Todos
             </FilterOption>
             {genders.map((g) => (
-              <FilterOption key={g} active={gender === g} onClick={() => setGender(g)}>
+              <FilterOption key={g} active={gender === g} onClick={() => setFilter(setGender, g)}>
                 {g}
               </FilterOption>
             ))}
@@ -263,14 +401,19 @@ function Catalogo() {
             <input
               type="range"
               min={500000}
-              max={3000000}
-              step={50000}
+              max={priceLimit}
+              step={PRICE_STEP}
               value={maxPrice}
-              onChange={(e) => setMaxPrice(Number(e.target.value))}
+              onChange={(e) => setPriceFilter(Number(e.target.value))}
               className="w-full accent-[var(--wine)]"
             />
             <p className="mt-2 text-xs text-muted-foreground">
-              Hasta {new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(maxPrice)}
+              Hasta{" "}
+              {new Intl.NumberFormat("es-CO", {
+                style: "currency",
+                currency: "COP",
+                maximumFractionDigits: 0,
+              }).format(maxPrice)}
             </p>
           </FilterGroup>
         </aside>
@@ -279,6 +422,7 @@ function Catalogo() {
         <div>
           <p className="mb-6 text-xs uppercase tracking-[0.2em] text-muted-foreground">
             {filtered.length} pieza{filtered.length === 1 ? "" : "s"}
+            {filtered.length > 0 && ` · Página ${currentPage} de ${totalPages}`}
           </p>
           {filtered.length === 0 ? (
             <div className="border border-dashed border-border py-20 text-center text-muted-foreground">
@@ -286,10 +430,48 @@ function Catalogo() {
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-x-6 gap-y-12 md:grid-cols-3">
-              {filtered.map((p) => (
+              {paginated.map((p) => (
                 <ProductCard key={p.id} product={p} />
               ))}
             </div>
+          )}
+          {totalPages > 1 && (
+            <nav
+              aria-label="Paginación de productos"
+              className="mt-12 flex flex-wrap items-center justify-center gap-2"
+            >
+              <button
+                type="button"
+                onClick={() => setPage((current) => Math.max(1, current - 1))}
+                disabled={currentPage === 1}
+                className="border border-foreground/20 px-4 py-2 text-[11px] uppercase tracking-[0.2em] text-muted-foreground transition-colors hover:border-wine hover:text-wine disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-foreground/20 disabled:hover:text-muted-foreground"
+              >
+                Anterior
+              </button>
+              {pageNumbers.map((pageNumber) => (
+                <button
+                  key={pageNumber}
+                  type="button"
+                  onClick={() => setPage(pageNumber)}
+                  aria-current={pageNumber === currentPage ? "page" : undefined}
+                  className={`h-10 min-w-10 border px-3 text-sm transition-colors ${
+                    pageNumber === currentPage
+                      ? "border-wine bg-wine text-primary-foreground"
+                      : "border-foreground/20 text-muted-foreground hover:border-wine hover:text-wine"
+                  }`}
+                >
+                  {pageNumber}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                disabled={currentPage === totalPages}
+                className="border border-foreground/20 px-4 py-2 text-[11px] uppercase tracking-[0.2em] text-muted-foreground transition-colors hover:border-wine hover:text-wine disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-foreground/20 disabled:hover:text-muted-foreground"
+              >
+                Siguiente
+              </button>
+            </nav>
           )}
         </div>
       </div>
@@ -300,13 +482,23 @@ function Catalogo() {
 function FilterGroup({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <h3 className="mb-3 font-serif text-xs uppercase tracking-[0.25em] text-foreground/80">{label}</h3>
+      <h3 className="mb-3 font-serif text-xs uppercase tracking-[0.25em] text-foreground/80">
+        {label}
+      </h3>
       <div className="space-y-1.5">{children}</div>
     </div>
   );
 }
 
-function FilterOption({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+function FilterOption({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
   return (
     <button
       onClick={onClick}

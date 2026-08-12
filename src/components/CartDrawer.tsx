@@ -3,6 +3,7 @@ import { Minus, Plus, X, ShoppingBag } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useCart } from "@/context/CartContext";
 import { formatCOP } from "@/data/products";
+import { ProductName } from "@/components/ProductName";
 
 export function CartDrawer() {
   const { open, setOpen, items, setQty, remove, subtotal } = useCart();
@@ -11,17 +12,13 @@ export function CartDrawer() {
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetContent className="flex w-full flex-col bg-background sm:max-w-md">
         <SheetHeader>
-          <SheetTitle className="font-serif text-2xl tracking-wide">
-            Tu selección
-          </SheetTitle>
+          <SheetTitle className="font-serif text-2xl tracking-wide">Tu selección</SheetTitle>
         </SheetHeader>
 
         {items.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
             <ShoppingBag className="h-10 w-10 text-muted-foreground" strokeWidth={1.2} />
-            <p className="text-sm text-muted-foreground">
-              Tu carrito está vacío.
-            </p>
+            <p className="text-sm text-muted-foreground">Tu carrito está vacío.</p>
             <Link
               to="/catalogo"
               onClick={() => setOpen(false)}
@@ -51,7 +48,7 @@ export function CartDrawer() {
                         onClick={() => setOpen(false)}
                         className="font-serif text-base leading-snug hover:text-wine"
                       >
-                        {i.name}
+                        <ProductName name={i.name} referenceClassName="text-[0.92em]" />
                       </Link>
                       <button
                         onClick={() => remove(i.id)}
@@ -80,9 +77,7 @@ export function CartDrawer() {
                           <Plus className="h-3 w-3" />
                         </button>
                       </div>
-                      <span className="text-sm font-medium">
-                        {formatCOP(i.price * i.qty)}
-                      </span>
+                      <span className="text-sm font-medium">{formatCOP(i.price * i.qty)}</span>
                     </div>
                   </div>
                 </div>
@@ -91,14 +86,10 @@ export function CartDrawer() {
 
             <div className="border-t border-border/60 pt-5">
               <div className="flex items-center justify-between text-sm">
-                <span className="uppercase tracking-[0.2em] text-muted-foreground">
-                  Subtotal
-                </span>
+                <span className="uppercase tracking-[0.2em] text-muted-foreground">Subtotal</span>
                 <span className="font-serif text-xl">{formatCOP(subtotal)}</span>
               </div>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Envío calculado en el checkout.
-              </p>
+              <p className="mt-1 text-xs text-muted-foreground">Envío calculado en el checkout.</p>
               <Link
                 to="/checkout"
                 onClick={() => setOpen(false)}

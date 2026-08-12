@@ -1,13 +1,23 @@
 import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
-import { ShieldCheck, Truck, RefreshCcw, ShoppingBag, Heart } from "lucide-react";
+import {
+  ShieldCheck,
+  Truck,
+  RefreshCcw,
+  ShoppingBag,
+  Heart,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { formatCOP, mapProduct, type Product } from "@/data/products";
 import { getProductBySlug, listActiveProducts } from "@/lib/products.functions";
 import { ProductCard } from "@/components/ProductCard";
 import { ProductReviews } from "@/components/ProductReviews";
+import { ProductName } from "@/components/ProductName";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
+import { getGlobalSettings } from "@/lib/site-content.functions";
 
 const productQueryOptions = (slug: string) =>
   queryOptions({
@@ -23,18 +33,27 @@ const relatedQueryOptions = queryOptions({
   queryFn: async () => (await listActiveProducts()).map(mapProduct),
 });
 
+const globalSettingsQueryOptions = queryOptions({
+  queryKey: ["global-settings"],
+  queryFn: () => getGlobalSettings(),
+});
+
 export const Route = createFileRoute("/producto/$slug")({
   loader: async ({ params, context }) => {
     const product = await context.queryClient.ensureQueryData(productQueryOptions(params.slug));
     if (!product) throw notFound();
     context.queryClient.ensureQueryData(relatedQueryOptions);
+    context.queryClient.ensureQueryData(globalSettingsQueryOptions);
     return { product };
   },
   head: ({ params, loaderData }) => ({
     meta: loaderData
       ? [
           { title: `${loaderData.product.name} — Rubí Relojería & Joyería` },
-          { name: "description", content: `${loaderData.product.description} Disponible en Rubí Relojería & Joyería Colombia.` },
+          {
+            name: "description",
+            content: `${loaderData.product.description} Disponible en Rubí Relojería & Joyería Colombia.`,
+          },
           { name: "robots", content: "index, follow" },
           { property: "og:title", content: `${loaderData.product.name} | Rubí` },
           { property: "og:description", content: loaderData.product.description },
@@ -76,7 +95,10 @@ export const Route = createFileRoute("/producto/$slug")({
   notFoundComponent: () => (
     <div className="mx-auto max-w-xl px-6 py-32 text-center">
       <h1 className="font-serif text-3xl">Pieza no encontrada</h1>
-      <Link to="/catalogo" className="mt-6 inline-block text-sm uppercase tracking-[0.25em] text-wine">
+      <Link
+        to="/catalogo"
+        className="mt-6 inline-block text-sm uppercase tracking-[0.25em] text-wine"
+      >
         Volver al catálogo
       </Link>
     </div>
@@ -96,6 +118,7 @@ function ProductDetail() {
   const { slug } = Route.useParams();
   const { data: product } = useSuspenseQuery(productQueryOptions(slug));
   const { data: all } = useSuspenseQuery(relatedQueryOptions);
+  const { data: settings } = useSuspenseQuery(globalSettingsQueryOptions);
   if (!product) throw notFound();
   const [active, setActive] = useState(0);
   const [qty, setQtyLocal] = useState(1);
@@ -106,16 +129,30 @@ function ProductDetail() {
   const hasDiscount = !!product.discountPrice;
   const soldOut = product.stock !== null && product.stock <= 0;
   const maxQty = product.stock ?? Infinity;
+  const hasGalleryNavigation = product.gallery.length > 1;
+  const showPreviousImage = () =>
+    setActive((current) => (current === 0 ? product.gallery.length - 1 : current - 1));
+  const showNextImage = () => setActive((current) => (current + 1) % product.gallery.length);
+  const announcement = settings.announcement?.trim();
   const related: Product[] = all
     .filter((p) => p.id !== product.id && p.category === product.category)
     .slice(0, 3);
+  const attributes = [
+    ["Garantía", product.warranty],
+    ["Marca", product.brand],
+    ["Material", product.material],
+    ["Color", product.color],
+    ["Tipo de uso", product.usageType],
+    ["Sexo", product.gender],
+    ["Categoría", product.categoryLabel],
+  ].filter(([, value]) => value);
 
   return (
     <div>
       <div className="mx-auto grid max-w-7xl gap-12 px-6 py-14 md:grid-cols-2 md:gap-16 md:px-10 md:py-20">
         {/* Galería */}
         <div>
-          <div className="aspect-[4/5] overflow-hidden bg-secondary">
+          <div className="group relative aspect-[4/5] overflow-hidden bg-secondary">
             <img
               src={product.gallery[active]}
               alt={product.name}
@@ -124,6 +161,29 @@ function ProductDetail() {
               decoding="async"
               className="h-full w-full object-cover transition-transform duration-700 hover:scale-105"
             />
+            {hasGalleryNavigation && (
+              <>
+                <button
+                  type="button"
+                  onClick={showPreviousImage}
+                  aria-label="Imagen anterior"
+                  className="absolute left-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-background/70 bg-background/75 text-foreground shadow-sm backdrop-blur-sm transition hover:bg-background md:opacity-0 md:group-hover:opacity-100"
+                >
+                  <ChevronLeft className="h-5 w-5" strokeWidth={1.4} />
+                </button>
+                <button
+                  type="button"
+                  onClick={showNextImage}
+                  aria-label="Imagen siguiente"
+                  className="absolute right-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-background/70 bg-background/75 text-foreground shadow-sm backdrop-blur-sm transition hover:bg-background md:opacity-0 md:group-hover:opacity-100"
+                >
+                  <ChevronRight className="h-5 w-5" strokeWidth={1.4} />
+                </button>
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-foreground/55 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-background backdrop-blur-sm">
+                  {active + 1} / {product.gallery.length}
+                </div>
+              </>
+            )}
           </div>
           <div className="mt-4 grid grid-cols-3 gap-3">
             {product.gallery.map((img: string, i: number) => (
@@ -134,7 +194,13 @@ function ProductDetail() {
                   i === active ? "ring-1 ring-wine" : "opacity-70 hover:opacity-100"
                 }`}
               >
-                <img src={img} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                <img
+                  src={img}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  className="h-full w-full object-cover"
+                />
               </button>
             ))}
           </div>
@@ -145,28 +211,36 @@ function ProductDetail() {
           <p className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground">
             {product.categoryLabel} · {product.brand}
           </p>
-          <h1 className="mt-4 font-serif text-4xl leading-tight md:text-5xl">{product.name}</h1>
+          <h1 className="mt-4 font-serif text-4xl leading-tight md:text-5xl">
+            <ProductName name={product.name} referenceClassName="text-[0.9em]" />
+          </h1>
 
           <div className="mt-6 flex items-baseline gap-3">
             {hasDiscount ? (
               <>
-                <span className="font-serif text-3xl text-wine">{formatCOP(product.discountPrice!)}</span>
-                <span className="text-base text-muted-foreground line-through">{formatCOP(product.price)}</span>
+                <span className="font-serif text-3xl text-wine">
+                  {formatCOP(product.discountPrice!)}
+                </span>
+                <span className="text-base text-muted-foreground line-through">
+                  {formatCOP(product.price)}
+                </span>
               </>
             ) : (
-              <span className="font-serif text-3xl text-foreground">{formatCOP(product.price)}</span>
+              <span className="font-serif text-3xl text-foreground">
+                {formatCOP(product.price)}
+              </span>
             )}
           </div>
 
           <p className="mt-8 leading-relaxed text-foreground/80">{product.description}</p>
 
-          <dl className="mt-8 grid grid-cols-1 gap-y-3 text-sm sm:grid-cols-[140px_1fr]">
-            <dt className="text-muted-foreground">Material</dt>
-            <dd>{product.material}</dd>
-            <dt className="text-muted-foreground">Garantía</dt>
-            <dd>{product.warranty}</dd>
-            <dt className="text-muted-foreground">Marca</dt>
-            <dd>{product.brand}</dd>
+          <dl className="mt-8 grid grid-cols-1 gap-x-10 gap-y-3 text-sm md:grid-cols-2">
+            {attributes.map(([label, value]) => (
+              <div key={label} className="grid grid-cols-[110px_1fr] gap-x-2">
+                <dt className="text-muted-foreground">{label}</dt>
+                <dd>{value}</dd>
+              </div>
+            ))}
           </dl>
 
           <div className="mt-10 flex items-center gap-3">
@@ -180,7 +254,7 @@ function ProductDetail() {
               </button>
               <span className="min-w-[36px] text-center text-sm">{qty}</span>
               <button
-              onClick={() => setQtyLocal((q) => Math.min(maxQty, q + 1))}
+                onClick={() => setQtyLocal((q) => Math.min(maxQty, q + 1))}
                 className="px-3 py-3 hover:text-wine"
                 aria-label="Sumar"
               >
@@ -188,17 +262,19 @@ function ProductDetail() {
               </button>
             </div>
             <button
-            onClick={() => add(product, qty)}
-            disabled={soldOut}
-            className="inline-flex flex-1 items-center justify-center gap-2 border border-foreground/30 px-8 py-4 text-[11px] uppercase tracking-[0.25em] text-foreground transition-colors hover:border-wine hover:text-wine disabled:opacity-40 disabled:hover:border-foreground/30 disabled:hover:text-foreground"
+              onClick={() => add(product, qty)}
+              disabled={soldOut}
+              className="inline-flex flex-1 items-center justify-center gap-2 border border-foreground/30 px-8 py-4 text-[11px] uppercase tracking-[0.25em] text-foreground transition-colors hover:border-wine hover:text-wine disabled:opacity-40 disabled:hover:border-foreground/30 disabled:hover:text-foreground"
             >
-            {soldOut ? "Agotado" : "Agregar al carrito"}
+              {soldOut ? "Agotado" : "Agregar al carrito"}
             </button>
             <button
               aria-label={fav ? "Quitar de favoritos" : "Agregar a favoritos"}
               onClick={() => toggle(product.id)}
               className={`inline-flex items-center justify-center border p-4 transition-colors ${
-                fav ? "border-wine text-wine" : "border-foreground/30 hover:border-wine hover:text-wine"
+                fav
+                  ? "border-wine text-wine"
+                  : "border-foreground/30 hover:border-wine hover:text-wine"
               }`}
             >
               <Heart className="h-4 w-4" strokeWidth={1.5} fill={fav ? "currentColor" : "none"} />
@@ -216,6 +292,11 @@ function ProductDetail() {
             <ShoppingBag className="h-4 w-4" strokeWidth={1.5} />
             Comprar ahora
           </button>
+          {announcement && (
+            <p className="mt-3 border border-wine/20 bg-wine/5 px-4 py-3 text-center text-[11px] uppercase tracking-[0.18em] text-wine">
+              {announcement}
+            </p>
+          )}
           {product.stock !== null && product.stock > 0 && product.stock <= 5 && (
             <p className="mt-3 text-xs text-wine">Solo quedan {product.stock} unidades</p>
           )}
@@ -223,9 +304,15 @@ function ProductDetail() {
           <div className="gold-divider mt-10" />
 
           <ul className="mt-8 grid grid-cols-1 gap-4 text-xs text-muted-foreground sm:grid-cols-3">
-            <li className="flex items-center gap-2"><Truck className="h-4 w-4 text-wine" strokeWidth={1.4} /> Envío seguro nacional</li>
-            <li className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-wine" strokeWidth={1.4} /> Pieza certificada</li>
-            <li className="flex items-center gap-2"><RefreshCcw className="h-4 w-4 text-wine" strokeWidth={1.4} /> Devolución 15 días</li>
+            <li className="flex items-center gap-2">
+              <Truck className="h-4 w-4 text-wine" strokeWidth={1.4} /> Envío seguro nacional
+            </li>
+            <li className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-wine" strokeWidth={1.4} /> Pieza certificada
+            </li>
+            <li className="flex items-center gap-2">
+              <RefreshCcw className="h-4 w-4 text-wine" strokeWidth={1.4} /> Devolución 15 días
+            </li>
           </ul>
         </div>
       </div>

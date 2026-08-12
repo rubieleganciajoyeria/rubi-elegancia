@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 type Props = {
-  folder: "products" | "banners";
+  folder: "products" | "banners" | "home";
   onUploaded: (url: string) => void;
   label?: string;
   className?: string;

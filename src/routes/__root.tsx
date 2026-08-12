@@ -14,7 +14,6 @@ import { Footer } from "@/components/Footer";
 import { CartProvider } from "@/context/CartContext";
 import { CartDrawer } from "@/components/CartDrawer";
 import { WishlistProvider } from "@/context/WishlistContext";
-import { AnnouncementBar } from "@/components/AnnouncementBar";
 import { WhatsAppFAB } from "@/components/WhatsAppFAB";
 import { Toaster } from "@/components/ui/sonner";
 
@@ -76,7 +75,8 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 }
 
 const SITE_URL = "https://rubi-joyeria.com";
-const OG_IMAGE = "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/9e65ee21-1732-4909-82a1-53c0ff79676a/id-preview-09a18a16--6a50b2d9-6abb-4961-b9b5-4f6201a1689c.lovable.app-1779545011696.png";
+const OG_IMAGE =
+  "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/9e65ee21-1732-4909-82a1-53c0ff79676a/id-preview-09a18a16--6a50b2d9-6abb-4961-b9b5-4f6201a1689c.lovable.app-1779545011696.png";
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: () => ({
@@ -84,7 +84,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Rubí — Relojería & Joyería | Elegancia que trasciende" },
-      { name: "description", content: "Relojería y joyería premium en Colombia. Relojes suizos, joyas de oro y plata. Piezas únicas para momentos que perduran. Envío a todo el país con garantía." },
+      {
+        name: "description",
+        content:
+          "Relojería y joyería premium en Colombia. Relojes suizos, joyas de oro y plata. Piezas únicas para momentos que perduran. Envío a todo el país con garantía.",
+      },
       { name: "author", content: "Rubí Relojería & Joyería" },
       { name: "robots", content: "index, follow" },
       { name: "language", content: "Spanish" },
@@ -93,7 +97,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       // Open Graph
       { property: "og:site_name", content: "Rubí Relojería & Joyería" },
       { property: "og:title", content: "Rubí — Relojería & Joyería | Elegancia que trasciende" },
-      { property: "og:description", content: "Relojería y joyería premium en Colombia. Relojes suizos, joyas de oro y plata. Piezas únicas para momentos que perduran." },
+      {
+        property: "og:description",
+        content:
+          "Relojería y joyería premium en Colombia. Relojes suizos, joyas de oro y plata. Piezas únicas para momentos que perduran.",
+      },
       { property: "og:type", content: "website" },
       { property: "og:url", content: SITE_URL },
       { property: "og:locale", content: "es_CO" },
@@ -103,7 +111,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       // Twitter Card
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "Rubí — Relojería & Joyería" },
-      { name: "twitter:description", content: "Relojería y joyería premium en Colombia. Relojes suizos, joyas de oro y plata." },
+      {
+        name: "twitter:description",
+        content: "Relojería y joyería premium en Colombia. Relojes suizos, joyas de oro y plata.",
+      },
       { name: "twitter:image", content: OG_IMAGE },
     ],
     links: [
@@ -130,9 +141,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
               name: "Rubí Relojería & Joyería",
               url: SITE_URL,
               logo: `${SITE_URL}/favicon.png`,
-              description: "Relojería y joyería premium en Colombia. Relojes suizos, joyas de oro y plata.",
+              description:
+                "Relojería y joyería premium en Colombia. Relojes suizos, joyas de oro y plata.",
               address: { "@type": "PostalAddress", addressCountry: "CO" },
-              contactPoint: { "@type": "ContactPoint", contactType: "customer support", availableLanguage: "Spanish" },
+              contactPoint: {
+                "@type": "ContactPoint",
+                contactType: "customer support",
+                availableLanguage: "Spanish",
+              },
             },
             {
               "@type": "WebSite",
@@ -142,7 +158,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
               publisher: { "@id": `${SITE_URL}/#organization` },
               potentialAction: {
                 "@type": "SearchAction",
-                target: { "@type": "EntryPoint", urlTemplate: `${SITE_URL}/catalogo?q={search_term_string}` },
+                target: {
+                  "@type": "EntryPoint",
+                  urlTemplate: `${SITE_URL}/catalogo?q={search_term_string}`,
+                },
                 "query-input": "required name=search_term_string",
               },
             },
@@ -179,7 +198,6 @@ function RootComponent() {
       <WishlistProvider>
         <CartProvider>
           <div className="flex min-h-screen flex-col">
-            <AnnouncementBar />
             <Header />
             <main className="flex-1">
               <Outlet />

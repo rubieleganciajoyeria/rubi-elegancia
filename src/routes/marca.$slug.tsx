@@ -1,14 +1,30 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { BRANDS } from "@/data/brands";
+import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { mapProduct } from "@/data/products";
 import { listActiveProducts } from "@/lib/products.functions";
+import { getBrandBySlug } from "@/lib/brands.functions";
 import { ProductCard } from "@/components/ProductCard";
 import { ArrowLeft, Sparkles, MapPin, Phone } from "lucide-react";
 
+const brandQueryOptions = (slug: string) =>
+  queryOptions({
+    queryKey: ["brand", slug],
+    queryFn: () => getBrandBySlug({ data: { slug } }),
+  });
+
+const productsQueryOptions = queryOptions({
+  queryKey: ["products", "active"],
+  queryFn: async () => (await listActiveProducts()).map(mapProduct),
+});
+
 export const Route = createFileRoute("/marca/$slug")({
-  head: ({ params }) => {
-    const brand = BRANDS.find((b) => b.slug === params.slug);
+  loader: async ({ params, context }) => {
+    const brand = await context.queryClient.ensureQueryData(brandQueryOptions(params.slug));
+    context.queryClient.ensureQueryData(productsQueryOptions);
+    return { brand };
+  },
+  head: ({ params, loaderData }) => {
+    const brand = loaderData?.brand;
     const SITE_URL = "https://rubi-joyeria.com";
     const title = brand ? `${brand.name} — Historia y Colección | Rubí` : "Marca — Rubí";
     const description = brand
@@ -27,22 +43,22 @@ export const Route = createFileRoute("/marca/$slug")({
         { property: "og:locale", content: "es_CO" },
         { property: "og:site_name", content: "Rubí Relojería & Joyería" },
       ],
-      links: [
-        { rel: "canonical", href: canonical },
-      ],
-      scripts: brand ? [
-        {
-          type: "application/ld+json",
-          children: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "Brand",
-            name: brand.name,
-            url: canonical,
-            description: description,
-            logo: `${SITE_URL}/favicon.png`,
-          }),
-        },
-      ] : [],
+      links: [{ rel: "canonical", href: canonical }],
+      scripts: brand
+        ? [
+            {
+              type: "application/ld+json",
+              children: JSON.stringify({
+                "@context": "https://schema.org",
+                "@type": "Brand",
+                name: brand.name,
+                url: canonical,
+                description: description,
+                logo: `${SITE_URL}/favicon.png`,
+              }),
+            },
+          ]
+        : [],
     };
   },
   component: BrandDetailPage,
@@ -50,13 +66,8 @@ export const Route = createFileRoute("/marca/$slug")({
 
 function BrandDetailPage() {
   const { slug } = Route.useParams();
-  const brand = BRANDS.find((b) => b.slug === slug);
-
-  // Fetch active products
-  const productsQ = useQuery({
-    queryKey: ["products", "active"],
-    queryFn: async () => (await listActiveProducts()).map(mapProduct),
-  });
+  const { data: brand } = useSuspenseQuery(brandQueryOptions(slug));
+  const productsQ = useSuspenseQuery(productsQueryOptions);
 
   if (!brand) {
     return (
@@ -76,8 +87,8 @@ function BrandDetailPage() {
   }
 
   // Filter products by brand (case-insensitive)
-  const brandProducts = (productsQ.data ?? []).filter(
-    (p) => p.brand.toLowerCase() === brand.name.toLowerCase()
+  const brandProducts = productsQ.data.filter(
+    (p) => p.brand.toLowerCase() === brand.name.toLowerCase(),
   );
 
   return (
@@ -143,7 +154,9 @@ function BrandDetailPage() {
         </div>
 
         {productsQ.isLoading ? (
-          <p className="text-center text-sm text-muted-foreground py-10">Cargando piezas de la colección…</p>
+          <p className="text-center text-sm text-muted-foreground py-10">
+            Cargando piezas de la colección…
+          </p>
         ) : brandProducts.length > 0 ? (
           <div className="grid grid-cols-2 gap-x-6 gap-y-12 md:grid-cols-4">
             {brandProducts.map((p) => (
@@ -154,12 +167,15 @@ function BrandDetailPage() {
           <div className="mx-auto max-w-2xl border border-border/80 bg-secondary/10 p-8 text-center md:p-12">
             <h3 className="font-serif text-xl">Disponible en nuestra Boutique</h3>
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground font-light">
-              Actualmente, las piezas exclusivas de la colección de <strong>{brand.name}</strong> se gestionan de manera personalizada en nuestra boutique física para garantizar la mejor asesoría técnica.
+              Actualmente, las piezas exclusivas de la colección de <strong>{brand.name}</strong> se
+              gestionan de manera personalizada en nuestra boutique física para garantizar la mejor
+              asesoría técnica.
             </p>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground font-light">
-              Contáctanos directamente para consultar disponibilidad, precios o programar una cita con un asesor.
+              Contáctanos directamente para consultar disponibilidad, precios o programar una cita
+              con un asesor.
             </p>
-            
+
             <div className="mt-8 flex flex-wrap justify-center gap-4">
               <a
                 href="https://wa.me/573123456789?text=Hola%20Rubí,%20me%20gustaría%20consultar%20disponibilidad%20de%20la%20marca%20"

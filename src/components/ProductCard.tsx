@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Heart } from "lucide-react";
 import { formatCOP, type Product } from "@/data/products";
 import { useWishlist } from "@/context/WishlistContext";
+import { ProductName } from "@/components/ProductName";
 
 export function ProductCard({ product }: { product: Product }) {
   const hasDiscount = !!product.discountPrice;
@@ -9,11 +10,7 @@ export function ProductCard({ product }: { product: Product }) {
   const { has, toggle } = useWishlist();
   const fav = has(product.id);
   return (
-    <Link
-      to="/producto/$slug"
-      params={{ slug: product.slug }}
-      className="group block"
-    >
+    <Link to="/producto/$slug" params={{ slug: product.slug }} className="group block">
       <div className="relative aspect-[4/5] overflow-hidden bg-secondary">
         <img
           src={product.image}
@@ -57,13 +54,17 @@ export function ProductCard({ product }: { product: Product }) {
           {product.categoryLabel}
         </p>
         <h3 className="font-serif text-lg leading-snug text-foreground transition-colors group-hover:text-wine">
-          {product.name}
+          <ProductName name={product.name} referenceClassName="text-[0.92em]" />
         </h3>
         <div className="flex items-baseline gap-2 pt-1">
           {hasDiscount ? (
             <>
-              <span className="text-sm font-medium text-wine">{formatCOP(product.discountPrice!)}</span>
-              <span className="text-xs text-muted-foreground line-through">{formatCOP(product.price)}</span>
+              <span className="text-sm font-medium text-wine">
+                {formatCOP(product.discountPrice!)}
+              </span>
+              <span className="text-xs text-muted-foreground line-through">
+                {formatCOP(product.price)}
+              </span>
             </>
           ) : (
             <span className="text-sm font-medium text-foreground">{formatCOP(product.price)}</span>

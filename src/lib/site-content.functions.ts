@@ -2,38 +2,37 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { ShippingSettings } from "./shipping";
 
-export type SiteContentMap = Record<string, any>;
+type SupabaseClientLike = Pick<typeof supabaseAdmin, "from">;
 
-export const listSiteContent = createServerFn({ method: "GET" }).handler(
-  async () => {
-    const { data, error } = await supabaseAdmin.from("site_content").select("key,data");
-    if (error) throw new Error(error.message);
-    const map: SiteContentMap = {};
-    for (const r of data ?? []) map[r.key] = r.data;
-    return map;
-  },
-);
+export type SiteContentMap = Record<string, unknown>;
 
-export const getGlobalSettings = createServerFn({ method: "GET" }).handler(
-  async () => {
-    const { data, error } = await supabaseAdmin
-      .from("site_content")
-      .select("data")
-      .eq("key", "global_settings")
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    return (data?.data ?? {}) as {
-      whatsapp?: string;
-      whatsapp_message?: string;
-      announcement?: string;
-      global_discount_percent?: number;
-      global_discount_active?: boolean;
-    };
-  },
-);
+export const listSiteContent = createServerFn({ method: "GET" }).handler(async () => {
+  const { data, error } = await supabaseAdmin.from("site_content").select("key,data");
+  if (error) throw new Error(error.message);
+  const map: SiteContentMap = {};
+  for (const r of data ?? []) map[r.key] = r.data;
+  return map;
+});
 
-async function assertAdmin(supabase: any, userId: string) {
+export const getGlobalSettings = createServerFn({ method: "GET" }).handler(async () => {
+  const { data, error } = await supabaseAdmin
+    .from("site_content")
+    .select("data")
+    .eq("key", "global_settings")
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return (data?.data ?? {}) as ShippingSettings & {
+    whatsapp?: string;
+    whatsapp_message?: string;
+    announcement?: string;
+    global_discount_percent?: number;
+    global_discount_active?: boolean;
+  };
+});
+
+async function assertAdmin(supabase: SupabaseClientLike, userId: string) {
   const { data, error } = await supabase
     .from("user_roles")
     .select("role")

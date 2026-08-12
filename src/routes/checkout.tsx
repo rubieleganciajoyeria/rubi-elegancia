@@ -11,6 +11,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { getGlobalSettings } from "@/lib/site-content.functions";
 import { WompiEnvBadge } from "@/components/WompiEnvBadge";
+import { COLOMBIA_DEPARTMENTS } from "@/data/colombiaLocations";
+import { calculateShipping } from "@/lib/shipping";
+import { ProductName } from "@/components/ProductName";
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({
@@ -31,6 +34,10 @@ export const Route = createFileRoute("/checkout")({
   component: CheckoutPage,
 });
 
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
 function CheckoutPage() {
   const { items, subtotal, clear } = useCart();
   const navigate = useNavigate();
@@ -47,6 +54,7 @@ function CheckoutPage() {
     name: "",
     email: "",
     phone: "",
+    department: "",
     city: "",
     address: "",
     notes: "",
@@ -60,7 +68,7 @@ function CheckoutPage() {
   const [sellerError, setSellerError] = useState<string | null>(null);
   const [sellerLoading, setSellerLoading] = useState(false);
   const validateSeller = useServerFn(validateSellerCode);
-  const shipping = subtotal > 0 && subtotal < 500000 ? 25000 : 0;
+  const shipping = calculateShipping(subtotal, form.city, form.department, settings);
   const discount = coupon?.discount ?? 0;
   const total = Math.max(0, subtotal + shipping - discount);
 
@@ -79,8 +87,8 @@ function CheckoutPage() {
         setSellerName(res.name ?? "Asesor");
         setSellerError(null);
       }
-    } catch (e: any) {
-      setSellerError(e?.message ?? "Código de asesor no válido");
+    } catch (error) {
+      setSellerError(getErrorMessage(error, "Código de asesor no válido"));
     } finally {
       setSellerLoading(false);
     }
@@ -99,15 +107,16 @@ function CheckoutPage() {
       } else {
         setCoupon({ code: res.code, discount: res.discount });
       }
-    } catch (e: any) {
-      setCouponError(e?.message ?? "Cupón inválido");
+    } catch (error) {
+      setCouponError(getErrorMessage(error, "Cupón inválido"));
     } finally {
       setCouponLoading(false);
     }
   };
 
-  const onChange = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
-    setForm({ ...form, [k]: e.target.value });
+  const onChange =
+    (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+      setForm({ ...form, [k]: e.target.value });
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -120,7 +129,7 @@ function CheckoutPage() {
           customer_name: form.name,
           customer_email: form.email,
           customer_phone: form.phone,
-          city: form.city,
+          city: `${form.city}, ${form.department}`,
           address: form.address,
           notes: form.notes,
           user_id: u.user?.id ?? null,
@@ -143,8 +152,8 @@ function CheckoutPage() {
         "customer-data:phone-number": form.phone,
       });
       window.location.href = `https://checkout.wompi.co/p/?${params.toString()}`;
-    } catch (err: any) {
-      setError(err?.message ?? "No pudimos registrar tu pedido. Intenta nuevamente.");
+    } catch (error) {
+      setError(getErrorMessage(error, "No pudimos registrar tu pedido. Intenta nuevamente."));
       setSubmitting(false);
     }
   };
@@ -162,6 +171,9 @@ function CheckoutPage() {
     ];
     return `https://wa.me/${wa}?text=${encodeURIComponent(lines.join("\n"))}`;
   };
+
+  const selectedDepartment = COLOMBIA_DEPARTMENTS.find((d) => d.name === form.department);
+  const cities = selectedDepartment?.cities ?? [];
 
   if (items.length === 0) {
     return (
@@ -195,17 +207,51 @@ function CheckoutPage() {
           <section>
             <h2 className="font-serif text-2xl">Datos de contacto</h2>
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <Field label="Nombre completo" value={form.name} onChange={onChange("name")} required />
-              <Field label="Correo electrónico" type="email" value={form.email} onChange={onChange("email")} required />
+              <Field
+                label="Nombre completo"
+                value={form.name}
+                onChange={onChange("name")}
+                required
+              />
+              <Field
+                label="Correo electrónico"
+                type="email"
+                value={form.email}
+                onChange={onChange("email")}
+                required
+              />
               <Field label="Teléfono" value={form.phone} onChange={onChange("phone")} required />
-              <Field label="Ciudad" value={form.city} onChange={onChange("city")} required />
+              <SelectField
+                label="Departamento"
+                value={form.department}
+                onChange={(value) => setForm({ ...form, department: value, city: "" })}
+                required
+                placeholder="Selecciona un departamento"
+                options={COLOMBIA_DEPARTMENTS.map((department) => department.name)}
+              />
+              <SelectField
+                label="Ciudad"
+                value={form.city}
+                onChange={(value) => setForm({ ...form, city: value })}
+                required
+                disabled={!form.department}
+                placeholder={
+                  form.department ? "Selecciona una ciudad" : "Primero elige departamento"
+                }
+                options={cities}
+              />
             </div>
           </section>
 
           <section>
             <h2 className="font-serif text-2xl">Dirección de envío</h2>
             <div className="mt-5 grid gap-4">
-              <Field label="Dirección" value={form.address} onChange={onChange("address")} required />
+              <Field
+                label="Dirección"
+                value={form.address}
+                onChange={onChange("address")}
+                required
+              />
               <div>
                 <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
                   Notas (opcional)
@@ -243,7 +289,8 @@ function CheckoutPage() {
                 </div>
                 {sellerName && (
                   <p className="mt-2 text-xs text-wine font-medium">
-                    ✓ Asesor seleccionado: <span className="uppercase font-semibold">{sellerName}</span>
+                    ✓ Asesor seleccionado:{" "}
+                    <span className="uppercase font-semibold">{sellerName}</span>
                   </p>
                 )}
                 {sellerError && <p className="mt-2 text-xs text-destructive">{sellerError}</p>}
@@ -254,7 +301,8 @@ function CheckoutPage() {
           <section>
             <h2 className="font-serif text-2xl">Pago</h2>
             <p className="mt-3 text-sm text-muted-foreground">
-              Pago seguro con Wompi. Aceptamos tarjetas, PSE, Nequi y Bancolombia. Serás redirigido para completar tu pago.
+              Pago seguro con Wompi. Aceptamos tarjetas, PSE, Nequi y Bancolombia. Serás redirigido
+              para completar tu pago.
             </p>
 
             <button
@@ -289,7 +337,9 @@ function CheckoutPage() {
                     <img src={i.image} alt={i.name} className="h-full w-full object-cover" />
                   </div>
                   <div className="flex flex-1 flex-col">
-                    <span className="font-serif text-base leading-snug">{i.name}</span>
+                    <span className="font-serif text-base leading-snug">
+                      <ProductName name={i.name} referenceClassName="text-[0.92em]" />
+                    </span>
                     <span className="text-xs text-muted-foreground">Cantidad: {i.qty}</span>
                     <span className="mt-auto text-sm">{formatCOP(i.price * i.qty)}</span>
                   </div>
@@ -314,7 +364,10 @@ function CheckoutPage() {
                     Cupón {coupon.code}{" "}
                     <button
                       type="button"
-                      onClick={() => { setCoupon(null); setCouponInput(""); }}
+                      onClick={() => {
+                        setCoupon(null);
+                        setCouponInput("");
+                      }}
                       className="ml-1 text-[10px] uppercase tracking-wider text-muted-foreground hover:text-wine"
                     >
                       quitar
@@ -357,7 +410,8 @@ function CheckoutPage() {
                 <Truck className="h-4 w-4 text-wine" strokeWidth={1.4} /> Envío nacional asegurado
               </li>
               <li className="flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-wine" strokeWidth={1.4} /> Pieza certificada y garantía
+                <ShieldCheck className="h-4 w-4 text-wine" strokeWidth={1.4} /> Pieza certificada y
+                garantía
               </li>
             </ul>
           </div>
@@ -393,6 +447,47 @@ function Field({
         required={required}
         className="mt-2 w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm outline-none focus:border-wine"
       />
+    </div>
+  );
+}
+
+function SelectField({
+  label,
+  value,
+  onChange,
+  options,
+  placeholder,
+  required,
+  disabled,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: string[];
+  placeholder: string;
+  required?: boolean;
+  disabled?: boolean;
+}) {
+  return (
+    <div>
+      <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+        {label}
+        {required ? " *" : ""}
+      </label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        required={required}
+        disabled={disabled}
+        className="mt-2 w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm outline-none focus:border-wine disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <option value="">{placeholder}</option>
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }
