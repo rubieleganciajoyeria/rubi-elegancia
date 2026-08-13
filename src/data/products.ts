@@ -20,6 +20,7 @@ export type Product = {
   description: string;
   warranty: string;
   stock: number | null; // null = ilimitado
+  badge?: "preorder";
 };
 
 // Mapeador de fila de BD → tipo Product usado por la UI
@@ -45,6 +46,7 @@ type DbRow = {
   description: string;
   warranty: string;
   stock?: number | null;
+  badge?: "preorder";
   product_images?: Array<{ url: string; sort_order: number; is_primary: boolean }> | null;
 };
 
@@ -53,7 +55,8 @@ export function mapProduct(row: DbRow): Product {
   imgs.sort((a, b) => a.sort_order - b.sort_order);
   const orderedUrls = imgs.map((i) => i.url);
   const legacyGallery = Array.isArray(row.gallery) ? (row.gallery as string[]) : [];
-  const gallery = orderedUrls.length > 0 ? orderedUrls : [row.image, ...legacyGallery].filter(Boolean);
+  const gallery =
+    orderedUrls.length > 0 ? orderedUrls : [row.image, ...legacyGallery].filter(Boolean);
   const primary = gallery[0] ?? row.image ?? "";
   return {
     id: row.id,
@@ -77,6 +80,7 @@ export function mapProduct(row: DbRow): Product {
     description: row.description,
     warranty: row.warranty,
     stock: typeof row.stock === "number" ? row.stock : null,
+    badge: row.badge,
   };
 }
 

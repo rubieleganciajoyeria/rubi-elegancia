@@ -7,6 +7,7 @@ import { ProductName } from "@/components/ProductName";
 export function ProductCard({ product }: { product: Product }) {
   const hasDiscount = !!product.discountPrice;
   const soldOut = product.stock !== null && product.stock <= 0;
+  const preorder = product.badge === "preorder" && !soldOut;
   const { has, toggle } = useWishlist();
   const fav = has(product.id);
   return (
@@ -21,9 +22,14 @@ export function ProductCard({ product }: { product: Product }) {
           height={750}
           className="h-full w-full object-cover transition-transform duration-[1200ms] ease-out group-hover:scale-[1.06]"
         />
-        {hasDiscount && (
+        {hasDiscount && !preorder && !soldOut && (
           <span className="absolute left-3 top-3 bg-wine px-2.5 py-1 text-[10px] uppercase tracking-[0.2em] text-primary-foreground">
             Oferta
+          </span>
+        )}
+        {preorder && (
+          <span className="absolute left-3 top-3 bg-foreground px-2.5 py-1 text-[10px] uppercase tracking-[0.2em] text-background">
+            Bajo pedido
           </span>
         )}
         {soldOut && (

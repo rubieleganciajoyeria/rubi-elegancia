@@ -61,6 +61,8 @@ export const Route = createFileRoute("/admin")({
 
 type ProductRow = Awaited<ReturnType<typeof adminListProducts>>[number];
 type ProductStatusFilter = "all" | "active" | "hidden";
+type ProductBadge = "" | "preorder";
+type ProductBadges = Record<string, "preorder">;
 
 type GlobalSettingsForm = ShippingSettings & {
   whatsapp?: string;
@@ -131,6 +133,8 @@ function AdminPage() {
   const save = useServerFn(upsertProduct);
   const del = useServerFn(deleteProduct);
   const saveImages = useServerFn(replaceProductImages);
+  const listContent = useServerFn(listSiteContent);
+  const saveContent = useServerFn(upsertSiteContent);
   const listCats = useServerFn(adminListCategories);
   const listTax = useServerFn(listTaxonomies);
   const listBrands = useServerFn(adminListBrands);
@@ -180,10 +184,11 @@ function AdminPage() {
 
   const saveM = useMutation({
     mutationFn: async (data: FormValues) => {
+      const { badge, ...productData } = data;
       const cleanImages = data.images
         .map((i) => ({ url: i.url.trim(), alt: i.alt?.trim() ?? "" }))
         .filter((i) => i.url.length > 0);
-      const { images: _omit, ...rest } = data;
+      const { images: _omit, ...rest } = productData;
       const payload = {
         ...rest,
         image: cleanImages[0]?.url ?? rest.image,
@@ -192,12 +197,21 @@ function AdminPage() {
       const res = await save({ data: payload });
       const id = res.id;
       await saveImages({ data: { product_id: id, images: cleanImages } });
+      const currentBadges = ((await listContent())?.product_badges ?? {}) as ProductBadges;
+      const nextBadges: ProductBadges = { ...currentBadges };
+      if (badge === "preorder") {
+        nextBadges[id] = "preorder";
+      } else {
+        delete nextBadges[id];
+      }
+      await saveContent({ data: { key: "product_badges", data: nextBadges } });
       return res;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin", "products"] });
       qc.invalidateQueries({ queryKey: ["products"] });
       qc.invalidateQueries({ queryKey: ["product"] });
+      qc.invalidateQueries({ queryKey: ["admin", "site-content"] });
       qc.invalidateQueries({ queryKey: ["brands"] });
       qc.invalidateQueries({ queryKey: ["brand"] });
       setEditing(null);
@@ -492,6 +506,7 @@ type FormValues = {
   is_active: boolean;
   sort_order: number;
   stock: number | null;
+  badge: ProductBadge;
   images: Array<{ url: string; alt: string }>;
 };
 
@@ -550,6 +565,7 @@ function ProductEditor({
     is_active: initial.is_active ?? true,
     sort_order: initial.sort_order ?? 0,
     stock: (initial as { stock?: number | null }).stock ?? null,
+    badge: (initial as { badge?: "preorder" }).badge ?? "",
     images: initialImages,
   });
 
@@ -826,6 +842,22 @@ function ProductEditor({
           />
 
           <FieldNumber label="Orden" value={v.sort_order} onChange={(n) => set("sort_order", n)} />
+          <div>
+            <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+              Estado comercial
+            </label>
+            <select
+              value={v.badge}
+              onChange={(e) => set("badge", e.target.value as ProductBadge)}
+              className="mt-2 w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm focus:border-wine"
+            >
+              <option value="">Automático</option>
+              <option value="preorder">Bajo pedido</option>
+            </select>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Automático muestra Oferta si tiene descuento o Agotado si stock es 0.
+            </p>
+          </div>
           <div>
             <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
               Stock (vacío = ilimitado)

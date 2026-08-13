@@ -4,6 +4,27 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { applyPromotions, type ActivePromotion } from "./promotions.functions";
 
+type ProductBadge = "preorder";
+type ProductBadges = Record<string, ProductBadge>;
+type PromotionSettings = {
+  global_discount_active?: boolean;
+  global_discount_percent?: number;
+};
+
+async function fetchProductBadges(): Promise<ProductBadges> {
+  const { data, error } = await supabaseAdmin
+    .from("site_content")
+    .select("data")
+    .eq("key", "product_badges")
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  const raw = data?.data;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  return Object.fromEntries(
+    Object.entries(raw).filter(([, value]) => value === "preorder"),
+  ) as ProductBadges;
+}
+
 async function fetchActivePromotions(): Promise<ActivePromotion[]> {
   const nowIso = new Date().toISOString();
   const [{ data, error }, { data: settings }] = await Promise.all([
@@ -18,7 +39,7 @@ async function fetchActivePromotions(): Promise<ActivePromotion[]> {
   ]);
   if (error) throw new Error(error.message);
   const list = (data ?? []) as ActivePromotion[];
-  const g: any = settings?.data ?? {};
+  const g = (settings?.data ?? {}) as PromotionSettings;
   if (g.global_discount_active && Number(g.global_discount_percent) > 0) {
     list.push({
       id: "__global__",
@@ -35,45 +56,49 @@ async function fetchActivePromotions(): Promise<ActivePromotion[]> {
 
 // --------- Public reads (no auth, uses admin client server-side) ---------
 
-export const listActiveProducts = createServerFn({ method: "GET" }).handler(
-  async () => {
-    const [{ data, error }, promos] = await Promise.all([
-      supabaseAdmin
-        .from("products")
-        .select("*, product_images(id,url,alt,sort_order,is_primary), color_ref:product_taxonomies!color_id(name), material_ref:product_taxonomies!material_id(name), usage_type_ref:product_taxonomies!usage_type_id(name), gender_ref:product_taxonomies!gender_id(name)")
-        .eq("is_active", true)
-        .order("sort_order", { ascending: true })
-        .order("sort_order", { foreignTable: "product_images", ascending: true }),
-      fetchActivePromotions(),
-    ]);
-    if (error) throw new Error(error.message);
-    return (data ?? []).map((row) => ({
-      ...row,
-      discount_price: applyPromotions(row.price, row.discount_price, row.id, promos),
-    }));
-  },
-);
+export const listActiveProducts = createServerFn({ method: "GET" }).handler(async () => {
+  const [{ data, error }, promos, badges] = await Promise.all([
+    supabaseAdmin
+      .from("products")
+      .select(
+        "*, product_images(id,url,alt,sort_order,is_primary), color_ref:product_taxonomies!color_id(name), material_ref:product_taxonomies!material_id(name), usage_type_ref:product_taxonomies!usage_type_id(name), gender_ref:product_taxonomies!gender_id(name)",
+      )
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true })
+      .order("sort_order", { foreignTable: "product_images", ascending: true }),
+    fetchActivePromotions(),
+    fetchProductBadges(),
+  ]);
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((row) => ({
+    ...row,
+    discount_price: applyPromotions(row.price, row.discount_price, row.id, promos),
+    badge: badges[row.id],
+  }));
+});
 
 export const getProductBySlug = createServerFn({ method: "GET" })
-  .inputValidator((input: unknown) =>
-    z.object({ slug: z.string().min(1).max(120) }).parse(input),
-  )
+  .inputValidator((input: unknown) => z.object({ slug: z.string().min(1).max(120) }).parse(input))
   .handler(async ({ data }) => {
-    const [{ data: row, error }, promos] = await Promise.all([
+    const [{ data: row, error }, promos, badges] = await Promise.all([
       supabaseAdmin
         .from("products")
-        .select("*, product_images(id,url,alt,sort_order,is_primary), color_ref:product_taxonomies!color_id(name), material_ref:product_taxonomies!material_id(name), usage_type_ref:product_taxonomies!usage_type_id(name), gender_ref:product_taxonomies!gender_id(name)")
+        .select(
+          "*, product_images(id,url,alt,sort_order,is_primary), color_ref:product_taxonomies!color_id(name), material_ref:product_taxonomies!material_id(name), usage_type_ref:product_taxonomies!usage_type_id(name), gender_ref:product_taxonomies!gender_id(name)",
+        )
         .eq("slug", data.slug)
         .eq("is_active", true)
         .order("sort_order", { foreignTable: "product_images", ascending: true })
         .maybeSingle(),
       fetchActivePromotions(),
+      fetchProductBadges(),
     ]);
     if (error) throw new Error(error.message);
     if (!row) return null;
     return {
       ...row,
       discount_price: applyPromotions(row.price, row.discount_price, row.id, promos),
+      badge: badges[row.id],
     };
   });
 
@@ -94,20 +119,33 @@ export const adminListProducts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await assertAdmin(context.userId);
-    const { data, error } = await supabaseAdmin
-      .from("products")
-      .select("*, product_images(id,url,alt,sort_order,is_primary), color_ref:product_taxonomies!color_id(name), material_ref:product_taxonomies!material_id(name), usage_type_ref:product_taxonomies!usage_type_id(name), gender_ref:product_taxonomies!gender_id(name)")
-      .order("sort_order", { ascending: true })
-      .order("sort_order", { foreignTable: "product_images", ascending: true });
+    const [{ data, error }, badges] = await Promise.all([
+      supabaseAdmin
+        .from("products")
+        .select(
+          "*, product_images(id,url,alt,sort_order,is_primary), color_ref:product_taxonomies!color_id(name), material_ref:product_taxonomies!material_id(name), usage_type_ref:product_taxonomies!usage_type_id(name), gender_ref:product_taxonomies!gender_id(name)",
+        )
+        .order("sort_order", { ascending: true })
+        .order("sort_order", { foreignTable: "product_images", ascending: true }),
+      fetchProductBadges(),
+    ]);
     if (error) throw new Error(error.message);
-    return data ?? [];
+    return (data ?? []).map((row) => ({ ...row, badge: badges[row.id] }));
   });
 
 const productSchema = z.object({
   id: z.string().uuid().optional(),
-  slug: z.string().min(1).max(120).regex(/^[a-z0-9-]+$/, "slug: solo minúsculas, números y guiones"),
+  slug: z
+    .string()
+    .min(1)
+    .max(120)
+    .regex(/^[a-z0-9-]+$/, "slug: solo minúsculas, números y guiones"),
   name: z.string().min(1).max(200),
-  category: z.string().min(1).max(60).regex(/^[a-z0-9-]+$/, "category: slug inválido"),
+  category: z
+    .string()
+    .min(1)
+    .max(60)
+    .regex(/^[a-z0-9-]+$/, "category: slug inválido"),
   category_label: z.string().min(1).max(60),
   brand: z.string().min(1).max(120),
   color_id: z.string().uuid().nullable().optional(),
@@ -136,10 +174,7 @@ export const upsertProduct = createServerFn({ method: "POST" })
       stock: data.stock ?? null,
     };
     if (data.id) {
-      const { error } = await supabaseAdmin
-        .from("products")
-        .update(payload)
-        .eq("id", data.id);
+      const { error } = await supabaseAdmin.from("products").update(payload).eq("id", data.id);
       if (error) throw new Error(error.message);
       return { id: data.id };
     } else {
@@ -155,9 +190,7 @@ export const upsertProduct = createServerFn({ method: "POST" })
 
 export const deleteProduct = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
-    z.object({ id: z.string().uuid() }).parse(input),
-  )
+  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
     const { error } = await supabaseAdmin.from("products").delete().eq("id", data.id);
@@ -235,20 +268,29 @@ export const listTaxonomies = createServerFn({ method: "GET" }).handler(async ()
 export const upsertTaxonomy = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
-    z.object({
-      id: z.string().uuid().optional(),
-      type: z.enum(["color", "material", "usage", "gender"]),
-      name: z.string().min(1).max(100)
-    }).parse(input),
+    z
+      .object({
+        id: z.string().uuid().optional(),
+        type: z.enum(["color", "material", "usage", "gender"]),
+        name: z.string().min(1).max(100),
+      })
+      .parse(input),
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
     if (data.id) {
-      const { error } = await supabaseAdmin.from("product_taxonomies").update({ name: data.name }).eq("id", data.id);
+      const { error } = await supabaseAdmin
+        .from("product_taxonomies")
+        .update({ name: data.name })
+        .eq("id", data.id);
       if (error) throw new Error(error.message);
       return { id: data.id };
     } else {
-      const { data: row, error } = await supabaseAdmin.from("product_taxonomies").insert(data).select("id").single();
+      const { data: row, error } = await supabaseAdmin
+        .from("product_taxonomies")
+        .insert(data)
+        .select("id")
+        .single();
       if (error) throw new Error(error.message);
       return { id: row.id };
     }
