@@ -30,7 +30,12 @@ export function Footer() {
             </p>
           </div>
           {footer.columns.map((column) => (
-            <FooterCol key={column.title} title={column.title} items={column.items} />
+            <FooterCol
+              key={column.title}
+              title={column.title}
+              items={column.items}
+              pdfUrl={footer.pdf_url}
+            />
           ))}
         </div>
         <div className="gold-divider mt-14" />
@@ -43,14 +48,46 @@ export function Footer() {
   );
 }
 
-function FooterCol({ title, items }: { title: string; items: FooterLink[] }) {
+function FooterCol({
+  title,
+  items,
+  pdfUrl,
+}: {
+  title: string;
+  items: FooterLink[];
+  pdfUrl?: string;
+}) {
+  const columnTitle = pdfUrl ? (
+    <a
+      href={pdfUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="transition-colors hover:text-wine"
+    >
+      {title}
+    </a>
+  ) : (
+    title
+  );
+
   return (
     <div>
-      <h4 className="font-serif text-xs uppercase tracking-[0.25em] text-foreground/80">{title}</h4>
+      <h4 className="font-serif text-xs uppercase tracking-[0.25em] text-foreground/80">
+        {columnTitle}
+      </h4>
       <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
         {items.map((item) => (
           <li key={`${title}-${item.label}`}>
-            {item.href ? (
+            {pdfUrl ? (
+              <a
+                href={pdfUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="cursor-pointer transition-colors hover:text-wine"
+              >
+                {item.label}
+              </a>
+            ) : item.href ? (
               <a href={item.href} className="cursor-pointer transition-colors hover:text-wine">
                 {item.label}
               </a>

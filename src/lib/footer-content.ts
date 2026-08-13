@@ -11,6 +11,7 @@ export type FooterColumn = {
 export type FooterContent = {
   description: string;
   columns: FooterColumn[];
+  pdf_url?: string;
   copyright: string;
   tagline: string;
 };
@@ -83,6 +84,7 @@ export function normalizeFooterContent(value: unknown): FooterContent {
         items,
       };
     }),
+    pdf_url: typeof footer.pdf_url === "string" ? footer.pdf_url : undefined,
     copyright:
       typeof footer.copyright === "string" ? footer.copyright : DEFAULT_FOOTER_CONTENT.copyright,
     tagline: typeof footer.tagline === "string" ? footer.tagline : DEFAULT_FOOTER_CONTENT.tagline,

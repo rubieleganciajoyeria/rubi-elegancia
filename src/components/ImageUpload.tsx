@@ -3,19 +3,32 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 type Props = {
-  folder: "products" | "banners" | "home";
+  folder: "products" | "banners" | "home" | "footer";
   onUploaded: (url: string) => void;
   label?: string;
   className?: string;
+  accept?: string;
+  maxSizeMb?: number;
+  successMessage?: string;
+  errorSizeMessage?: string;
 };
 
-export function ImageUpload({ folder, onUploaded, label = "Subir imagen", className = "" }: Props) {
+export function ImageUpload({
+  folder,
+  onUploaded,
+  label = "Subir imagen",
+  className = "",
+  accept = "image/*",
+  maxSizeMb = 5,
+  successMessage = "Imagen subida",
+  errorSizeMessage,
+}: Props) {
   const ref = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
 
   async function handleFile(file: File) {
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Máx 5MB por imagen");
+    if (file.size > maxSizeMb * 1024 * 1024) {
+      toast.error(errorSizeMessage ?? `Máx ${maxSizeMb}MB por archivo`);
       return;
     }
     setBusy(true);
@@ -30,7 +43,7 @@ export function ImageUpload({ folder, onUploaded, label = "Subir imagen", classN
       if (error) throw error;
       const { data } = supabase.storage.from("media").getPublicUrl(path);
       onUploaded(data.publicUrl);
-      toast.success("Imagen subida");
+      toast.success(successMessage);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Error al subir");
     } finally {
@@ -44,7 +57,7 @@ export function ImageUpload({ folder, onUploaded, label = "Subir imagen", classN
       <input
         ref={ref}
         type="file"
-        accept="image/*"
+        accept={accept}
         className="hidden"
         onChange={(e) => {
           const f = e.target.files?.[0];

@@ -2524,6 +2524,30 @@ function FooterAdmin() {
             className="w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm outline-none focus:border-wine"
           />
         </Labeled>
+        <Labeled label="PDF único para todos los enlaces" className="md:col-span-2">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center">
+            <input
+              value={footer.pdf_url ?? ""}
+              onChange={(e) => set("pdf_url", e.target.value)}
+              placeholder="https://.../documento.pdf"
+              className="w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm outline-none focus:border-wine"
+            />
+            <ImageUpload
+              folder="footer"
+              label="Subir PDF"
+              accept="application/pdf"
+              maxSizeMb={15}
+              successMessage="PDF subido"
+              errorSizeMessage="Máx 15MB por PDF"
+              onUploaded={(url) => set("pdf_url", url)}
+              className="shrink-0"
+            />
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Cuando este campo tenga un PDF, todos los títulos e items del footer abrirán este mismo
+            documento en una pestaña nueva.
+          </p>
+        </Labeled>
         <Labeled label="Copyright">
           <input
             value={footer.copyright}
@@ -2570,11 +2594,9 @@ function FooterAdmin() {
                     value={item.label}
                     onChange={(value) => setLink(columnIndex, linkIndex, { label: value })}
                   />
-                  <Field
-                    label="Enlace"
-                    value={item.href ?? ""}
-                    onChange={(value) => setLink(columnIndex, linkIndex, { href: value })}
-                  />
+                  <p className="text-xs text-muted-foreground">
+                    Este item abrirá el PDF único configurado arriba.
+                  </p>
                   <button
                     type="button"
                     onClick={() => removeLink(columnIndex, linkIndex)}
