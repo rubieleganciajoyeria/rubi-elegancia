@@ -3,7 +3,7 @@ import React from "react";
 export interface Brand {
   slug: string;
   name: string;
-  category: "swiss" | "fashion" | "jewelry";
+  category: string;
   history: string;
   logoText: string;
   logoSubtext?: string;

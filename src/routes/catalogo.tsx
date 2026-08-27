@@ -19,7 +19,18 @@ const categoriesQueryOptions = queryOptions({
 });
 
 type SortOpt = "relevance" | "price-asc" | "price-desc" | "name";
-type Search = { cat?: string; q?: string; sort?: SortOpt };
+type Search = {
+  cat?: string;
+  q?: string;
+  sort?: SortOpt;
+  brand?: string;
+  material?: string;
+  color?: string;
+  usage?: string;
+  gender?: string;
+  maxPrice?: number;
+  page?: number;
+};
 
 const SORT_VALUES: SortOpt[] = ["relevance", "price-asc", "price-desc", "name"];
 const DEFAULT_MAX_PRICE = 20000000;
@@ -34,6 +45,13 @@ export const Route = createFileRoute("/catalogo")({
       typeof s.sort === "string" && (SORT_VALUES as string[]).includes(s.sort)
         ? (s.sort as SortOpt)
         : undefined,
+    brand: typeof s.brand === "string" && s.brand.length <= 120 ? s.brand : undefined,
+    material: typeof s.material === "string" && s.material.length <= 120 ? s.material : undefined,
+    color: typeof s.color === "string" && s.color.length <= 120 ? s.color : undefined,
+    usage: typeof s.usage === "string" && s.usage.length <= 120 ? s.usage : undefined,
+    gender: typeof s.gender === "string" && s.gender.length <= 120 ? s.gender : undefined,
+    maxPrice: typeof s.maxPrice === "string" && !isNaN(Number(s.maxPrice)) ? Number(s.maxPrice) : undefined,
+    page: typeof s.page === "string" && !isNaN(Number(s.page)) && Number(s.page) > 0 ? Number(s.page) : undefined,
   }),
   head: () => ({
     meta: [
@@ -84,7 +102,7 @@ export const Route = createFileRoute("/catalogo")({
 });
 
 function Catalogo() {
-  const { cat, q, sort } = Route.useSearch();
+  const { cat, q, sort, brand: urlBrand, material: urlMaterial, color: urlColor, usage: urlUsage, gender: urlGender, maxPrice: urlMaxPrice, page: urlPage } = Route.useSearch();
   const navigate = useNavigate({ from: "/catalogo" });
   const { data: products } = useSuspenseQuery(productsQueryOptions);
   const { data: categories } = useSuspenseQuery(categoriesQueryOptions);
@@ -114,40 +132,51 @@ function Catalogo() {
   }, [products]);
 
   const [category, setCategory] = useState<string>(cat ?? "todos");
-  const [brand, setBrand] = useState<string>("todas");
-  const [material, setMaterial] = useState<string>("todos");
-  const [color, setColor] = useState<string>("todos");
-  const [usageType, setUsageType] = useState<string>("todos");
-  const [gender, setGender] = useState<string>("todos");
-  const [maxPrice, setMaxPrice] = useState<number>(priceLimit);
+  const [brand, setBrand] = useState<string>(urlBrand ?? "todas");
+  const [material, setMaterial] = useState<string>(urlMaterial ?? "todos");
+  const [color, setColor] = useState<string>(urlColor ?? "todos");
+  const [usageType, setUsageType] = useState<string>(urlUsage ?? "todos");
+  const [gender, setGender] = useState<string>(urlGender ?? "todos");
+  const [maxPrice, setMaxPrice] = useState<number>(urlMaxPrice ?? priceLimit);
   const [query, setQuery] = useState<string>(q ?? "");
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState<number>(urlPage ?? 1);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   useEffect(() => {
     setMaxPrice((current) => Math.max(current, priceLimit));
   }, [priceLimit]);
 
+  const updateSearch = (patch: Partial<Search>) => {
+    navigate({ search: (prev: Search) => ({ ...prev, ...patch }) });
+  };
+
   const currentSort: SortOpt = sort ?? "relevance";
   const setSort = (s: SortOpt) => {
     setPage(1);
-    navigate({ search: (prev: Search) => ({ ...prev, sort: s === "relevance" ? undefined : s }) });
+    updateSearch({ sort: s === "relevance" ? undefined : s, page: undefined });
   };
 
   const applyQuery = (value: string) => {
     const v = value.trim();
     setPage(1);
-    navigate({ search: (prev: Search) => ({ ...prev, q: v.length > 0 ? v : undefined }) });
+    updateSearch({ q: v.length > 0 ? v : undefined, page: undefined });
   };
 
-  const setFilter = (setter: (value: string) => void, value: string) => {
+  const setFilter = (setter: (value: string) => void, key: keyof Search, value: string) => {
     setPage(1);
     setter(value);
+    updateSearch({ [key]: value === "todos" || value === "todas" ? undefined : value, page: undefined });
   };
 
   const setPriceFilter = (value: number) => {
     setPage(1);
     setMaxPrice(value);
+    updateSearch({ maxPrice: value < priceLimit ? value : undefined, page: undefined });
+  };
+
+  const setPageNum = (p: number) => {
+    setPage(p);
+    updateSearch({ page: p > 1 ? p : undefined });
   };
 
   const activeFilterCount = [
@@ -169,6 +198,7 @@ function Catalogo() {
     setUsageType("todos");
     setGender("todos");
     setMaxPrice(priceLimit);
+    navigate({ search: {} });
   };
 
   const filtered = useMemo((): Product[] => {
@@ -209,7 +239,7 @@ function Catalogo() {
   const pageNumbers = Array.from({ length: totalPages }, (_, index) => index + 1);
 
   useEffect(() => {
-    setPage((current) => Math.min(current, totalPages));
+    if (page > totalPages) setPageNum(totalPages);
   }, [totalPages]);
 
   return (
@@ -313,7 +343,7 @@ function Catalogo() {
           <FilterGroup label="Categoría">
             <FilterOption
               active={category === "todos"}
-              onClick={() => setFilter(setCategory, "todos")}
+              onClick={() => setFilter(setCategory, "cat", "todos")}
             >
               Todos
             </FilterOption>
@@ -321,7 +351,7 @@ function Catalogo() {
               <FilterOption
                 key={c.slug}
                 active={category === c.slug}
-                onClick={() => setFilter(setCategory, c.slug)}
+                onClick={() => setFilter(setCategory, "cat", c.slug)}
               >
                 {c.name}
               </FilterOption>
@@ -329,11 +359,11 @@ function Catalogo() {
           </FilterGroup>
 
           <FilterGroup label="Marca">
-            <FilterOption active={brand === "todas"} onClick={() => setFilter(setBrand, "todas")}>
+            <FilterOption active={brand === "todas"} onClick={() => setFilter(setBrand, "brand", "todas")}>
               Todas
             </FilterOption>
             {brands.map((b) => (
-              <FilterOption key={b} active={brand === b} onClick={() => setFilter(setBrand, b)}>
+              <FilterOption key={b} active={brand === b} onClick={() => setFilter(setBrand, "brand", b)}>
                 {b}
               </FilterOption>
             ))}
@@ -342,7 +372,7 @@ function Catalogo() {
           <FilterGroup label="Material">
             <FilterOption
               active={material === "todos"}
-              onClick={() => setFilter(setMaterial, "todos")}
+              onClick={() => setFilter(setMaterial, "material", "todos")}
             >
               Todos
             </FilterOption>
@@ -350,7 +380,7 @@ function Catalogo() {
               <FilterOption
                 key={m}
                 active={material === m}
-                onClick={() => setFilter(setMaterial, m)}
+                onClick={() => setFilter(setMaterial, "material", m)}
               >
                 {m}
               </FilterOption>
@@ -358,11 +388,11 @@ function Catalogo() {
           </FilterGroup>
 
           <FilterGroup label="Color">
-            <FilterOption active={color === "todos"} onClick={() => setFilter(setColor, "todos")}>
+            <FilterOption active={color === "todos"} onClick={() => setFilter(setColor, "color", "todos")}>
               Todos
             </FilterOption>
             {colors.map((c) => (
-              <FilterOption key={c} active={color === c} onClick={() => setFilter(setColor, c)}>
+              <FilterOption key={c} active={color === c} onClick={() => setFilter(setColor, "color", c)}>
                 {c}
               </FilterOption>
             ))}
@@ -371,7 +401,7 @@ function Catalogo() {
           <FilterGroup label="Tipo de Uso">
             <FilterOption
               active={usageType === "todos"}
-              onClick={() => setFilter(setUsageType, "todos")}
+              onClick={() => setFilter(setUsageType, "usage", "todos")}
             >
               Todos
             </FilterOption>
@@ -379,7 +409,7 @@ function Catalogo() {
               <FilterOption
                 key={u}
                 active={usageType === u}
-                onClick={() => setFilter(setUsageType, u)}
+                onClick={() => setFilter(setUsageType, "usage", u)}
               >
                 {u}
               </FilterOption>
@@ -387,11 +417,11 @@ function Catalogo() {
           </FilterGroup>
 
           <FilterGroup label="Género">
-            <FilterOption active={gender === "todos"} onClick={() => setFilter(setGender, "todos")}>
+            <FilterOption active={gender === "todos"} onClick={() => setFilter(setGender, "gender", "todos")}>
               Todos
             </FilterOption>
             {genders.map((g) => (
-              <FilterOption key={g} active={gender === g} onClick={() => setFilter(setGender, g)}>
+              <FilterOption key={g} active={gender === g} onClick={() => setFilter(setGender, "gender", g)}>
                 {g}
               </FilterOption>
             ))}
@@ -442,7 +472,7 @@ function Catalogo() {
             >
               <button
                 type="button"
-                onClick={() => setPage((current) => Math.max(1, current - 1))}
+                onClick={() => setPageNum(Math.max(1, currentPage - 1))}
                 disabled={currentPage === 1}
                 className="border border-foreground/20 px-4 py-2 text-[11px] uppercase tracking-[0.2em] text-muted-foreground transition-colors hover:border-wine hover:text-wine disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-foreground/20 disabled:hover:text-muted-foreground"
               >
@@ -452,7 +482,7 @@ function Catalogo() {
                 <button
                   key={pageNumber}
                   type="button"
-                  onClick={() => setPage(pageNumber)}
+                  onClick={() => setPageNum(pageNumber)}
                   aria-current={pageNumber === currentPage ? "page" : undefined}
                   className={`h-10 min-w-10 border px-3 text-sm transition-colors ${
                     pageNumber === currentPage
@@ -465,7 +495,7 @@ function Catalogo() {
               ))}
               <button
                 type="button"
-                onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                onClick={() => setPageNum(Math.min(totalPages, currentPage + 1))}
                 disabled={currentPage === totalPages}
                 className="border border-foreground/20 px-4 py-2 text-[11px] uppercase tracking-[0.2em] text-muted-foreground transition-colors hover:border-wine hover:text-wine disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-foreground/20 disabled:hover:text-muted-foreground"
               >

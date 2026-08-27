@@ -6,7 +6,7 @@ import { BRANDS } from "@/data/brands";
 
 const BRANDS_KEY = "brands";
 
-export type BrandCategory = "swiss" | "fashion" | "jewelry";
+export type BrandCategory = string;
 
 export type ManagedBrand = {
   slug: string;
@@ -39,7 +39,6 @@ function normalizeBrands(value: unknown): ManagedBrand[] | null {
       if (!brand || typeof brand !== "object") return null;
       const row = brand as Partial<ManagedBrand>;
       if (!row.slug || !row.name || !row.category) return null;
-      if (!["swiss", "fashion", "jewelry"].includes(row.category)) return null;
       return {
         slug: row.slug,
         name: row.name,
@@ -93,7 +92,7 @@ const brandSchema = z.object({
     .max(120)
     .regex(/^[a-z0-9-]+$/, "slug inválido"),
   name: z.string().min(1).max(120),
-  category: z.enum(["swiss", "fashion", "jewelry"]),
+  category: z.string().min(1).max(120),
   history: z.string().max(4000).default(""),
   logoText: z.string().min(1).max(120),
   logoSubtext: z.string().max(160).default(""),

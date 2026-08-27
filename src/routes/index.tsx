@@ -10,6 +10,7 @@ import { listActiveProducts } from "@/lib/products.functions";
 import { listActiveBanners } from "@/lib/banners.functions";
 import { listSiteContent } from "@/lib/site-content.functions";
 import { listActiveBrands, type ManagedBrand } from "@/lib/brands.functions";
+import { listActiveBrandGroups, type BrandGroup } from "@/lib/brand-groups.functions";
 import { ProductCard } from "@/components/ProductCard";
 import { HeroCarousel } from "@/components/HeroCarousel";
 
@@ -70,6 +71,11 @@ const brandsQueryOptions = queryOptions({
   queryFn: () => listActiveBrands(),
 });
 
+const brandGroupsQueryOptions = queryOptions({
+  queryKey: ["brand-groups", "active"],
+  queryFn: () => listActiveBrandGroups(),
+});
+
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
@@ -88,6 +94,7 @@ export const Route = createFileRoute("/")({
     context.queryClient.ensureQueryData(bannersQueryOptions);
     context.queryClient.ensureQueryData(siteContentQueryOptions);
     context.queryClient.ensureQueryData(brandsQueryOptions);
+    context.queryClient.ensureQueryData(brandGroupsQueryOptions);
     return context.queryClient.ensureQueryData(productsQueryOptions);
   },
   component: Home,
@@ -98,6 +105,7 @@ function Home() {
   const { data: banners } = useSuspenseQuery(bannersQueryOptions);
   const { data: content } = useSuspenseQuery(siteContentQueryOptions);
   const { data: brands } = useSuspenseQuery(brandsQueryOptions);
+  const { data: brandGroups } = useSuspenseQuery(brandGroupsQueryOptions);
   const featured = products.slice(0, 4);
   const pillars = (content.home_pillars as { items?: HomeIconItem[] } | undefined)?.items ?? [];
   const emo = content.home_emotional ?? {};
@@ -200,7 +208,7 @@ function Home() {
 
       {/* Nuestras Marcas */}
       <div className="gold-divider max-w-7xl mx-auto px-6 md:px-10" />
-      <BrandsSection brands={brands} />
+      <BrandsSection brands={brands} brandGroups={brandGroups} />
 
       {/* Beneficios */}
       <section className="border-y border-border/60 bg-secondary/40">
@@ -210,12 +218,21 @@ function Home() {
           ))}
         </div>
       </section>
+
+      {/* Encuéntranos */}
+      <LocationSection content={content} />
     </div>
   );
 }
 
-function BrandsSection({ brands }: { brands: ManagedBrand[] }) {
-  const [activeTab, setActiveTab] = useState<"swiss" | "fashion" | "jewelry">("swiss");
+function BrandsSection({
+  brands,
+  brandGroups,
+}: {
+  brands: ManagedBrand[];
+  brandGroups: BrandGroup[];
+}) {
+  const [activeTab, setActiveTab] = useState<string>(brandGroups[0]?.slug ?? "swiss");
 
   const filteredBrands = brands.filter((b) => b.category === activeTab);
 
@@ -232,36 +249,19 @@ function BrandsSection({ brands }: { brands: ManagedBrand[] }) {
 
       {/* Tabs / Categorías */}
       <div className="mt-10 flex flex-wrap justify-center gap-3">
-        <button
-          onClick={() => setActiveTab("swiss")}
-          className={`px-6 py-2.5 text-[10px] uppercase tracking-[0.2em] font-semibold transition-all duration-300 ${
-            activeTab === "swiss"
-              ? "bg-[#2d3a43] text-primary-foreground rounded-full shadow-sm"
-              : "border border-foreground/30 hover:border-wine hover:text-wine rounded-full text-foreground/80 bg-background"
-          }`}
-        >
-          Marcas Suizas
-        </button>
-        <button
-          onClick={() => setActiveTab("fashion")}
-          className={`px-6 py-2.5 text-[10px] uppercase tracking-[0.2em] font-semibold transition-all duration-300 ${
-            activeTab === "fashion"
-              ? "bg-[#2d3a43] text-primary-foreground rounded-full shadow-sm"
-              : "border border-foreground/30 hover:border-wine hover:text-wine rounded-full text-foreground/80 bg-background"
-          }`}
-        >
-          Marcas Fashion
-        </button>
-        <button
-          onClick={() => setActiveTab("jewelry")}
-          className={`px-6 py-2.5 text-[10px] uppercase tracking-[0.2em] font-semibold transition-all duration-300 ${
-            activeTab === "jewelry"
-              ? "bg-[#2d3a43] text-primary-foreground rounded-full shadow-sm"
-              : "border border-foreground/30 hover:border-wine hover:text-wine rounded-full text-foreground/80 bg-background"
-          }`}
-        >
-          Joyería
-        </button>
+        {brandGroups.map((group) => (
+          <button
+            key={group.slug}
+            onClick={() => setActiveTab(group.slug)}
+            className={`px-6 py-2.5 text-[10px] uppercase tracking-[0.2em] font-semibold transition-all duration-300 ${
+              activeTab === group.slug
+                ? "bg-[#2d3a43] text-primary-foreground rounded-full shadow-sm"
+                : "border border-foreground/30 hover:border-wine hover:text-wine rounded-full text-foreground/80 bg-background"
+            }`}
+          >
+            {group.name}
+          </button>
+        ))}
       </div>
 
       {/* Grid de Logos */}
@@ -287,6 +287,85 @@ function BrandsSection({ brands }: { brands: ManagedBrand[] }) {
             </span>
           </Link>
         ))}
+      </div>
+    </section>
+  );
+}
+
+type LocationData = {
+  address?: string;
+  city?: string;
+  phone?: string;
+  lat?: string;
+  lng?: string;
+};
+
+function LocationSection({ content }: { content: Record<string, unknown> }) {
+  const loc = (content.location ?? {}) as LocationData;
+  const hasCoords = loc.lat && loc.lng;
+
+  if (!loc.address && !loc.city) return null;
+
+  return (
+    <section className="mx-auto max-w-7xl px-6 py-24 md:px-10 md:py-32">
+      <div className="grid gap-10 md:grid-cols-2 md:items-center">
+        <div>
+          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+            Encuéntranos
+          </p>
+          <h2 className="mt-4 font-serif text-3xl md:text-5xl">
+            Nuestra ubicación
+          </h2>
+          <div className="mt-8 space-y-4 text-sm text-muted-foreground leading-relaxed">
+            {loc.address && (
+              <p>
+                <span className="block text-[10px] uppercase tracking-[0.2em] text-foreground/60 mb-1">
+                  Dirección
+                </span>
+                {loc.address}
+              </p>
+            )}
+            {loc.city && (
+              <p>
+                <span className="block text-[10px] uppercase tracking-[0.2em] text-foreground/60 mb-1">
+                  Ciudad
+                </span>
+                {loc.city}
+              </p>
+            )}
+            {loc.phone && (
+              <p>
+                <span className="block text-[10px] uppercase tracking-[0.2em] text-foreground/60 mb-1">
+                  Teléfono
+                </span>
+                {loc.phone}
+              </p>
+            )}
+          </div>
+          {hasCoords && (
+            <a
+              href={`https://www.openstreetmap.org/?mlat=${loc.lat}&mlon=${loc.lng}#map=16/${loc.lat}/${loc.lng}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-8 inline-block text-[11px] uppercase tracking-[0.25em] text-wine hover:underline"
+            >
+              Ver en mapa →
+            </a>
+          )}
+        </div>
+
+        {hasCoords && (
+          <div className="overflow-hidden border border-border/60">
+            <iframe
+              title="Ubicación Rubí"
+              width="100%"
+              height="400"
+              loading="lazy"
+              src={`https://www.openstreetmap.org/export/embed.html?bbox=${Number(loc.lng) - 0.01},${Number(loc.lat) - 0.01},${Number(loc.lng) + 0.01},${Number(loc.lat) + 0.01}&layer=mapnik&marker=${loc.lat},${loc.lng}`}
+              style={{ border: 0 }}
+            />
+          </div>
+        )}
       </div>
     </section>
   );

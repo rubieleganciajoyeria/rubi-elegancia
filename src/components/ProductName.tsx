@@ -23,7 +23,7 @@ export function ProductName({ name, className, referenceClassName }: ProductName
       {title}{" "}
       <span
         className={cn(
-          "font-sans font-normal tracking-normal [font-variant-numeric:tabular-nums]",
+          "font-serif font-normal tracking-normal [font-variant-numeric:tabular-nums]",
           referenceClassName,
         )}
       >

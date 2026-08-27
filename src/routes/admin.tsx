@@ -34,6 +34,12 @@ import {
   type BrandCategory,
   type ManagedBrand,
 } from "@/lib/brands.functions";
+import {
+  adminListBrandGroups,
+  upsertBrandGroup,
+  deleteBrandGroup,
+  type BrandGroup,
+} from "@/lib/brand-groups.functions";
 import { formatCOP } from "@/data/products";
 import {
   listTaxonomies,
@@ -138,6 +144,7 @@ function AdminPage() {
   const listCats = useServerFn(adminListCategories);
   const listTax = useServerFn(listTaxonomies);
   const listBrands = useServerFn(adminListBrands);
+  const listBrandGroups = useServerFn(adminListBrandGroups);
   const qc = useQueryClient();
 
   const roleQ = useQuery({ queryKey: ["my-role"], queryFn: () => role() });
@@ -159,6 +166,11 @@ function AdminPage() {
   const brandsQ = useQuery({
     queryKey: ["admin", "brands"],
     queryFn: () => listBrands(),
+    enabled: !!roleQ.data?.isAdmin,
+  });
+  const brandGroupsQ = useQuery({
+    queryKey: ["admin", "brand-groups"],
+    queryFn: () => listBrandGroups(),
     enabled: !!roleQ.data?.isAdmin,
   });
 
@@ -288,7 +300,11 @@ function AdminPage() {
 
       <div className="gold-divider my-12" />
 
-      <BrandsAdmin />
+      <BrandGroupsAdmin />
+
+      <div className="gold-divider my-12" />
+
+      <BrandsAdmin brandGroups={brandGroupsQ.data ?? []} />
 
       <div className="gold-divider my-12" />
 
@@ -321,6 +337,10 @@ function AdminPage() {
       <div className="gold-divider my-12" />
 
       <HomeSectionsAdmin />
+
+      <div className="gold-divider my-12" />
+
+      <LocationAdmin />
 
       <div className="gold-divider my-12" />
 
@@ -1202,13 +1222,237 @@ function FieldNumber({
   );
 }
 
+function BrandGroupsAdmin() {
+  const list = useServerFn(adminListBrandGroups);
+  const save = useServerFn(upsertBrandGroup);
+  const del = useServerFn(deleteBrandGroup);
+  const qc = useQueryClient();
+  const q = useQuery({ queryKey: ["admin", "brand-groups"], queryFn: () => list() });
+  const [editing, setEditing] = useState<Partial<BrandGroup> | null>(null);
+
+  const saveM = useMutation({
+    mutationFn: (group: {
+      id?: string;
+      slug: string;
+      name: string;
+      sort_order: number;
+      is_active: boolean;
+    }) => save({ data: group }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "brand-groups"] });
+      qc.invalidateQueries({ queryKey: ["brands"] });
+      setEditing(null);
+    },
+  });
+  const delM = useMutation({
+    mutationFn: (id: string) => del({ data: { id } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "brand-groups"] });
+      qc.invalidateQueries({ queryKey: ["brands"] });
+    },
+  });
+
+  return (
+    <section>
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <h2 className="font-serif text-2xl">Grupos de Marcas</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Administra los grupos (pestañas) que se muestran en la sección "Nuestras Marcas".
+          </p>
+        </div>
+        <button
+          onClick={() =>
+            setEditing({
+              is_active: true,
+              sort_order: (q.data ?? []).length,
+            })
+          }
+          className="inline-flex items-center gap-2 bg-wine px-4 py-2 text-[11px] uppercase tracking-[0.25em] text-primary-foreground hover:opacity-90"
+        >
+          <Plus className="h-4 w-4" /> Nuevo grupo
+        </button>
+      </div>
+
+      <div className="mt-6 overflow-x-auto border border-border/60">
+        <table className="w-full text-sm">
+          <thead className="bg-secondary/50 text-left text-[11px] uppercase tracking-[0.15em] text-muted-foreground">
+            <tr>
+              <th className="p-3">Nombre</th>
+              <th className="p-3">Slug</th>
+              <th className="p-3">Orden</th>
+              <th className="p-3">Estado</th>
+              <th className="p-3 text-right">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(q.data ?? []).map((group) => (
+              <tr key={group.id} className="border-t border-border/60">
+                <td className="p-3 font-serif text-base tracking-[0.12em] uppercase">
+                  {group.name}
+                </td>
+                <td className="p-3 font-mono text-xs text-muted-foreground">{group.slug}</td>
+                <td className="p-3 text-muted-foreground">{group.sort_order}</td>
+                <td className="p-3">
+                  <span
+                    className={`px-2 py-1 text-[10px] uppercase tracking-wider ${
+                      group.is_active
+                        ? "bg-secondary text-foreground"
+                        : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {group.is_active ? "Activo" : "Oculto"}
+                  </span>
+                </td>
+                <td className="p-3 text-right">
+                  <button
+                    onClick={() => setEditing(group)}
+                    aria-label="Editar grupo"
+                    className="mr-2 inline-flex items-center justify-center p-2 hover:text-wine"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (confirm(`¿Eliminar grupo ${group.name}?`)) delM.mutate(group.id);
+                    }}
+                    aria-label="Eliminar grupo"
+                    className="inline-flex items-center justify-center p-2 hover:text-wine"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </td>
+              </tr>
+            ))}
+            {(q.data ?? []).length === 0 && (
+              <tr>
+                <td colSpan={5} className="p-6 text-center text-sm text-muted-foreground">
+                  No hay grupos configurados.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+      {delM.error instanceof Error && (
+        <p className="mt-3 text-sm text-destructive">{delM.error.message}</p>
+      )}
+
+      {editing && (
+        <BrandGroupEditor
+          initial={editing}
+          onCancel={() => setEditing(null)}
+          onSubmit={(group) => saveM.mutate(group)}
+          saving={saveM.isPending}
+          error={saveM.error instanceof Error ? saveM.error.message : null}
+        />
+      )}
+    </section>
+  );
+}
+
+type BrandGroupFormValues = {
+  id?: string;
+  slug: string;
+  name: string;
+  sort_order: number;
+  is_active: boolean;
+};
+
+function BrandGroupEditor({
+  initial,
+  onCancel,
+  onSubmit,
+  saving,
+  error,
+}: {
+  initial: Partial<BrandGroup>;
+  onCancel: () => void;
+  onSubmit: (group: BrandGroupFormValues) => void;
+  saving: boolean;
+  error: string | null;
+}) {
+  const [v, setV] = useState<BrandGroupFormValues>({
+    id: initial.id,
+    slug: initial.slug ?? "",
+    name: initial.name ?? "",
+    sort_order: initial.sort_order ?? 0,
+    is_active: initial.is_active ?? true,
+  });
+  const set = <K extends keyof BrandGroupFormValues>(k: K, val: BrandGroupFormValues[K]) =>
+    setV({ ...v, [k]: val });
+
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, []);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4">
+      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto bg-background p-8 shadow-2xl">
+        <div className="flex items-start justify-between">
+          <h2 className="font-serif text-2xl">
+            {initial.id ? "Editar grupo" : "Nuevo grupo"}
+          </h2>
+          <button onClick={onCancel} aria-label="Cerrar" className="p-2 hover:text-wine">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            onSubmit(v);
+          }}
+          className="mt-6 grid gap-4"
+        >
+          <Field label="Nombre" value={v.name} onChange={(x) => set("name", x)} required />
+          <Field
+            label="Slug (URL)"
+            value={v.slug}
+            onChange={(x) => set("slug", x.toLowerCase())}
+            required
+          />
+          <FieldNumber label="Orden" value={v.sort_order} onChange={(n) => set("sort_order", n)} />
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={v.is_active}
+              onChange={(e) => set("is_active", e.target.checked)}
+            />
+            Grupo visible
+          </label>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          <div className="mt-2 flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="px-5 py-3 text-[11px] uppercase tracking-[0.25em] text-muted-foreground hover:text-wine"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="bg-wine px-6 py-3 text-[11px] uppercase tracking-[0.25em] text-primary-foreground hover:opacity-90 disabled:opacity-50"
+            >
+              {saving ? "Guardando…" : "Guardar"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 const BRAND_CATEGORIES: Array<{ value: BrandCategory; label: string }> = [
   { value: "swiss", label: "Marcas suizas" },
   { value: "fashion", label: "Marcas fashion" },
   { value: "jewelry", label: "Joyería" },
 ];
 
-function BrandsAdmin() {
+function BrandsAdmin({ brandGroups }: { brandGroups: BrandGroup[] }) {
   const list = useServerFn(adminListBrands);
   const save = useServerFn(upsertBrand);
   const del = useServerFn(deleteBrand);
@@ -1279,7 +1523,7 @@ function BrandsAdmin() {
                   <p className="text-xs text-muted-foreground">{brand.logoSubtext || brand.name}</p>
                 </td>
                 <td className="p-3 text-xs uppercase tracking-wider text-muted-foreground">
-                  {BRAND_CATEGORIES.find((cat) => cat.value === brand.category)?.label ??
+                  {brandGroups.find((g) => g.slug === brand.category)?.name ??
                     brand.category}
                 </td>
                 <td className="p-3 font-mono text-xs text-muted-foreground">{brand.slug}</td>
@@ -1332,6 +1576,7 @@ function BrandsAdmin() {
       {editing && (
         <BrandEditor
           initial={editing}
+          brandGroups={brandGroups}
           onCancel={() => setEditing(null)}
           onSubmit={(brand) => saveM.mutate(brand)}
           saving={saveM.isPending}
@@ -1346,12 +1591,14 @@ type BrandFormValues = ManagedBrand & { original_slug?: string };
 
 function BrandEditor({
   initial,
+  brandGroups,
   onCancel,
   onSubmit,
   saving,
   error,
 }: {
   initial: Partial<ManagedBrand>;
+  brandGroups: BrandGroup[];
   onCancel: () => void;
   onSubmit: (brand: BrandFormValues) => void;
   saving: boolean;
@@ -1421,9 +1668,9 @@ function BrandEditor({
               onChange={(e) => set("category", e.target.value as BrandCategory)}
               className="mt-2 w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm focus:border-wine"
             >
-              {BRAND_CATEGORIES.map((category) => (
-                <option key={category.value} value={category.value}>
-                  {category.label}
+              {brandGroups.map((group) => (
+                <option key={group.slug} value={group.slug}>
+                  {group.name}
                 </option>
               ))}
             </select>
@@ -2470,6 +2717,177 @@ function HomeSectionsAdmin() {
           );
         })}
       </div>
+    </section>
+  );
+}
+
+function LocationAdmin() {
+  const list = useServerFn(listSiteContent);
+  const save = useServerFn(upsertSiteContent);
+  const qc = useQueryClient();
+  const q = useQuery({ queryKey: ["admin", "site-content"], queryFn: () => list() });
+
+  type LocationForm = {
+    address: string;
+    city: string;
+    phone: string;
+    lat: string;
+    lng: string;
+  };
+
+  const defaultLocation: LocationForm = {
+    address: "",
+    city: "",
+    phone: "",
+    lat: "",
+    lng: "",
+  };
+
+  const raw = q.data?.location as Record<string, string> | undefined;
+  const [form, setForm] = useState<LocationForm | null>(null);
+
+  const location: LocationForm = form ?? {
+    address: raw?.address ?? defaultLocation.address,
+    city: raw?.city ?? defaultLocation.city,
+    phone: raw?.phone ?? defaultLocation.phone,
+    lat: raw?.lat ?? defaultLocation.lat,
+    lng: raw?.lng ?? defaultLocation.lng,
+  };
+
+  const set = <K extends keyof LocationForm>(key: K, value: LocationForm[K]) =>
+    setForm({ ...location, [key]: value });
+
+  const saveM = useMutation({
+    mutationFn: () =>
+      save({
+        data: {
+          key: "location",
+          data: {
+            address: location.address,
+            city: location.city,
+            phone: location.phone,
+            lat: location.lat,
+            lng: location.lng,
+          },
+        },
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "site-content"] });
+      qc.invalidateQueries({ queryKey: ["site-content"] });
+      setForm(null);
+    },
+  });
+
+  const hasChanges = form !== null;
+
+  return (
+    <section>
+      <div>
+        <h2 className="font-serif text-2xl">Encuéntranos</h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Configura la dirección y ubicación que se muestra en la sección "Encuéntranos" del homepage.
+        </p>
+      </div>
+
+      <div className="mt-6 grid gap-4 sm:grid-cols-2">
+        <div className="sm:col-span-2">
+          <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+            Dirección completa
+          </label>
+          <input
+            type="text"
+            value={location.address}
+            onChange={(e) => set("address", e.target.value)}
+            placeholder="Cra 7 # 72-41, Bogotá, Colombia"
+            className="mt-2 w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm focus:border-wine"
+          />
+        </div>
+        <div>
+          <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+            Ciudad
+          </label>
+          <input
+            type="text"
+            value={location.city}
+            onChange={(e) => set("city", e.target.value)}
+            placeholder="Bogotá"
+            className="mt-2 w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm focus:border-wine"
+          />
+        </div>
+        <div>
+          <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+            Teléfono
+          </label>
+          <input
+            type="text"
+            value={location.phone}
+            onChange={(e) => set("phone", e.target.value)}
+            placeholder="+57 300 123 4567"
+            className="mt-2 w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm focus:border-wine"
+          />
+        </div>
+        <div>
+          <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+            Latitud
+          </label>
+          <input
+            type="text"
+            value={location.lat}
+            onChange={(e) => set("lat", e.target.value)}
+            placeholder="4.6716"
+            className="mt-2 w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm focus:border-wine"
+          />
+        </div>
+        <div>
+          <label className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+            Longitud
+          </label>
+          <input
+            type="text"
+            value={location.lng}
+            onChange={(e) => set("lng", e.target.value)}
+            placeholder="-74.0536"
+            className="mt-2 w-full border border-foreground/20 bg-transparent px-3 py-2 text-sm focus:border-wine"
+          />
+        </div>
+      </div>
+
+      <div className="mt-4 flex items-center gap-4">
+        <button
+          disabled={!hasChanges || saveM.isPending}
+          onClick={() => saveM.mutate()}
+          className="bg-wine px-6 py-3 text-[11px] uppercase tracking-[0.25em] text-primary-foreground hover:opacity-90 disabled:opacity-50"
+        >
+          {saveM.isPending ? "Guardando…" : "Guardar ubicación"}
+        </button>
+        {hasChanges && (
+          <button
+            onClick={() => setForm(null)}
+            className="px-4 py-3 text-[11px] uppercase tracking-[0.25em] text-muted-foreground hover:text-wine"
+          >
+            Descartar
+          </button>
+        )}
+        {saveM.isSuccess && (
+          <span className="text-xs text-muted-foreground">Guardado correctamente</span>
+        )}
+        {saveM.error instanceof Error && (
+          <span className="text-xs text-destructive">{saveM.error.message}</span>
+        )}
+      </div>
+
+      {location.lat && location.lng && (
+        <div className="mt-6 overflow-hidden border border-border/60">
+          <iframe
+            title="Ubicación"
+            width="100%"
+            height="300"
+            loading="lazy"
+            src={`https://www.openstreetmap.org/export/embed.html?bbox=${Number(location.lng) - 0.01},${Number(location.lat) - 0.01},${Number(location.lng) + 0.01},${Number(location.lat) + 0.01}&layer=mapnik&marker=${location.lat},${location.lng}`}
+            style={{ border: 0 }}
+          />
+        </div>
+      )}
     </section>
   );
 }
