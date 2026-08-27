@@ -307,7 +307,7 @@ function LocationSection({ content }: { content: Record<string, unknown> }) {
   if (!loc.address && !loc.city) return null;
 
   return (
-    <section className="mx-auto max-w-7xl px-6 py-24 md:px-10 md:py-32">
+    <section className="mx-auto max-w-7xl px-6 py-12 md:px-10 md:py-16">
       <div className="grid gap-10 md:grid-cols-2 md:items-center">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
