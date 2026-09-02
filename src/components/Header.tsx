@@ -36,13 +36,13 @@ export function Header() {
           {menuOpen ? <X className="h-5 w-5" strokeWidth={1.4} /> : <Menu className="h-5 w-5" strokeWidth={1.4} />}
         </button>
         <nav className="hidden flex-1 items-center gap-8 text-[0.78rem] uppercase tracking-[0.18em] text-foreground/80 md:flex">
-          <Link to="/catalogo" search={{ cat: "relojeria" } as never} className="hover:text-wine transition-colors">
+          <Link to="/catalogo" search={{ cat: "relojeria" }} className="hover:text-wine transition-colors">
             Relojería
           </Link>
-          <Link to="/catalogo" search={{ cat: "joyeria" } as never} className="hover:text-wine transition-colors">
+          <Link to="/catalogo" search={{ cat: "joyeria" }} className="hover:text-wine transition-colors">
             Joyería
           </Link>
-          <Link to="/catalogo" className="hover:text-wine transition-colors">
+          <Link to="/catalogo" search={{}} className="hover:text-wine transition-colors">
             Colección
           </Link>
         </nav>
@@ -87,9 +87,9 @@ export function Header() {
       {menuOpen && (
         <div className="border-t border-border/60 bg-background md:hidden">
           <nav className="mx-auto flex max-w-7xl flex-col px-6 py-4 text-sm uppercase tracking-[0.2em] text-foreground/80">
-            <Link to="/catalogo" search={{ cat: "relojeria" } as never} onClick={() => setMenuOpen(false)} className="py-3 hover:text-wine">Relojería</Link>
-            <Link to="/catalogo" search={{ cat: "joyeria" } as never} onClick={() => setMenuOpen(false)} className="py-3 hover:text-wine">Joyería</Link>
-            <Link to="/catalogo" onClick={() => setMenuOpen(false)} className="py-3 hover:text-wine">Colección</Link>
+            <Link to="/catalogo" search={{ cat: "relojeria" }} onClick={() => setMenuOpen(false)} className="py-3 hover:text-wine">Relojería</Link>
+            <Link to="/catalogo" search={{ cat: "joyeria" }} onClick={() => setMenuOpen(false)} className="py-3 hover:text-wine">Joyería</Link>
+            <Link to="/catalogo" search={{}} onClick={() => setMenuOpen(false)} className="py-3 hover:text-wine">Colección</Link>
             <div className="my-2 h-px bg-border/60" />
             <Link to="/favoritos" onClick={() => setMenuOpen(false)} className="flex items-center justify-between py-3 hover:text-wine">
               <span>Favoritos</span>

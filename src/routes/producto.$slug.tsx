@@ -128,6 +128,8 @@ function ProductDetail() {
   const fav = has(product.id);
   const hasDiscount = !!product.discountPrice;
   const soldOut = product.stock !== null && product.stock <= 0;
+  const isPreorder = product.badge === "preorder";
+  const cannotBuy = soldOut || isPreorder;
   const maxQty = product.stock ?? Infinity;
   const hasGalleryNavigation = product.gallery.length > 1;
   const showPreviousImage = () =>
@@ -247,7 +249,8 @@ function ProductDetail() {
             <div className="flex items-center border border-foreground/30">
               <button
                 onClick={() => setQtyLocal((q) => Math.max(1, q - 1))}
-                className="px-3 py-3 hover:text-wine"
+                disabled={cannotBuy}
+                className="px-3 py-3 hover:text-wine disabled:opacity-40"
                 aria-label="Restar"
               >
                 −
@@ -255,7 +258,8 @@ function ProductDetail() {
               <span className="min-w-[36px] text-center text-sm">{qty}</span>
               <button
                 onClick={() => setQtyLocal((q) => Math.min(maxQty, q + 1))}
-                className="px-3 py-3 hover:text-wine"
+                disabled={cannotBuy}
+                className="px-3 py-3 hover:text-wine disabled:opacity-40"
                 aria-label="Sumar"
               >
                 +
@@ -263,10 +267,10 @@ function ProductDetail() {
             </div>
             <button
               onClick={() => add(product, qty)}
-              disabled={soldOut}
+              disabled={cannotBuy}
               className="inline-flex flex-1 items-center justify-center gap-2 border border-foreground/30 px-8 py-4 text-[11px] uppercase tracking-[0.25em] text-foreground transition-colors hover:border-wine hover:text-wine disabled:opacity-40 disabled:hover:border-foreground/30 disabled:hover:text-foreground"
             >
-              {soldOut ? "Agotado" : "Agregar al carrito"}
+              {isPreorder ? "Bajo pedido" : soldOut ? "Agotado" : "Agregar al carrito"}
             </button>
             <button
               aria-label={fav ? "Quitar de favoritos" : "Agregar a favoritos"}
@@ -286,12 +290,22 @@ function ProductDetail() {
               setOpen(false);
               navigate({ to: "/checkout" });
             }}
-            disabled={soldOut}
+            disabled={cannotBuy}
             className="mt-3 inline-flex w-full items-center justify-center gap-2 bg-wine px-8 py-4 text-[11px] uppercase tracking-[0.25em] text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
           >
             <ShoppingBag className="h-4 w-4" strokeWidth={1.5} />
-            Comprar ahora
+            {isPreorder ? "Bajo pedido" : "Comprar ahora"}
           </button>
+          {isPreorder && (
+            <a
+              href="https://wa.me/573157274270?text=Hola,%20me%20interesa%20este%20producto%20bajo%20pedido"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-3 inline-flex w-full items-center justify-center gap-2 border border-foreground/30 px-8 py-4 text-[11px] uppercase tracking-[0.25em] text-foreground transition-colors hover:border-wine hover:text-wine"
+            >
+              Consultar disponibilidad por WhatsApp
+            </a>
+          )}
           {announcement && (
             <p className="mt-3 border border-wine/20 bg-wine/5 px-4 py-3 text-center text-[11px] uppercase tracking-[0.18em] text-wine">
               {announcement}
