@@ -142,6 +142,16 @@ function Catalogo() {
   const [page, setPage] = useState<number>(urlPage ?? 1);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
+  useEffect(() => { setCategory(cat ?? "todos"); }, [cat]);
+  useEffect(() => { setBrand(urlBrand ?? "todas"); }, [urlBrand]);
+  useEffect(() => { setMaterial(urlMaterial ?? "todos"); }, [urlMaterial]);
+  useEffect(() => { setColor(urlColor ?? "todos"); }, [urlColor]);
+  useEffect(() => { setUsageType(urlUsage ?? "todos"); }, [urlUsage]);
+  useEffect(() => { setGender(urlGender ?? "todos"); }, [urlGender]);
+  useEffect(() => { setMaxPrice(urlMaxPrice ?? priceLimit); }, [urlMaxPrice, priceLimit]);
+  useEffect(() => { setQuery(q ?? ""); }, [q]);
+  useEffect(() => { setPage(urlPage ?? 1); }, [urlPage]);
+
   useEffect(() => {
     setMaxPrice((current) => Math.max(current, priceLimit));
   }, [priceLimit]);
