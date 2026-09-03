@@ -55,23 +55,23 @@ export const Route = createFileRoute("/catalogo")({
   }),
   head: () => ({
     meta: [
-      { title: "Catálogo de Relojes y Joyas | Rubí Relojería & Joyería" },
+      { title: "Catálogo de Relojes y Joyas | Relojería y Joyería Rubí" },
       {
         name: "description",
         content:
-          "Explora nuestra colección completa de relojes suizos, joyas de oro, plata y piezas de moda. Todas las marcas: Rolex, Omega, Tissot, Pandora y más.",
+          "Explora nuestra colección de relojes suizos y joyas en Bucaramanga, Colombia. Marcas: Tissot, Seiko, Guess, Fossil. Envío a todo el país con garantía.",
       },
       { name: "robots", content: "index, follow" },
-      { property: "og:title", content: "Catálogo de Relojes y Joyas | Rubí" },
+      { property: "og:title", content: "Catálogo de Relojes y Joyas | Relojería y Joyería Rubí" },
       {
         property: "og:description",
         content:
-          "Explora nuestra colección completa de relojes suizos, joyas de oro, plata y piezas de moda premium.",
+          "Relojes suizos, joyas de oro y plata en Bucaramanga, Colombia. Marcas premium con garantía oficial.",
       },
       { property: "og:url", content: "https://rubi-joyeria.com/catalogo" },
       { property: "og:type", content: "website" },
       { property: "og:locale", content: "es_CO" },
-      { property: "og:site_name", content: "Rubí Relojería & Joyería" },
+      { property: "og:site_name", content: "Relojería y Joyería Rubí" },
     ],
     links: [{ rel: "canonical", href: "https://rubi-joyeria.com/catalogo" }],
     scripts: [

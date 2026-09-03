@@ -83,24 +83,27 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Rubí — Relojería & Joyería | Elegancia que trasciende" },
+      { title: "Relojería y Joyería Rubí | Tienda de Relojes y Joyas en Colombia" },
       {
         name: "description",
         content:
-          "Relojería y joyería premium en Colombia. Relojes suizos, joyas de oro y plata. Piezas únicas para momentos que perduran. Envío a todo el país con garantía.",
+          "Relojería y Joyería Rubí en Bucaramanga, Colombia. Venta de relojes suizos Tissot, Seiko, Guess, Fossil y joyas de oro y plata. Envío a todo el país. Garantía oficial.",
       },
-      { name: "author", content: "Rubí Relojería & Joyería" },
+      { name: "author", content: "Relojería y Joyería Rubí" },
+      { name: "keywords", content: "relojería, joyería, relojes, joyas, Bucaramanga, Colombia, Tissot, Seiko, Guess, Fossil, oro, plata, relojes suizos, tienda de relojes, joyería fina" },
       { name: "robots", content: "index, follow" },
       { name: "language", content: "Spanish" },
       { name: "geo.region", content: "CO" },
-      { name: "geo.placename", content: "Colombia" },
+      { name: "geo.placename", content: "Bucaramanga" },
+      { name: "geo.position", content: "7.1254;-73.1198" },
+      { name: "ICBM", content: "7.1254, -73.1198" },
       // Open Graph
-      { property: "og:site_name", content: "Rubí Relojería & Joyería" },
-      { property: "og:title", content: "Rubí — Relojería & Joyería | Elegancia que trasciende" },
+      { property: "og:site_name", content: "Relojería y Joyería Rubí" },
+      { property: "og:title", content: "Relojería y Joyería Rubí | Relojes y Joyas en Colombia" },
       {
         property: "og:description",
         content:
-          "Relojería y joyería premium en Colombia. Relojes suizos, joyas de oro y plata. Piezas únicas para momentos que perduran.",
+          "Venta de relojes suizos y joyas de oro y plata en Bucaramanga, Colombia. Marcas premium con garantía oficial y envío a todo el país.",
       },
       { property: "og:type", content: "website" },
       { property: "og:url", content: SITE_URL },
@@ -110,10 +113,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:image:height", content: "630" },
       // Twitter Card
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "Rubí — Relojería & Joyería" },
+      { name: "twitter:title", content: "Relojería y Joyería Rubí" },
       {
         name: "twitter:description",
-        content: "Relojería y joyería premium en Colombia. Relojes suizos, joyas de oro y plata.",
+        content: "Relojes suizos y joyas de oro en Bucaramanga, Colombia. Envío nacional con garantía.",
       },
       { name: "twitter:image", content: OG_IMAGE },
     ],

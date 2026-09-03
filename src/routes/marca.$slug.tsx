@@ -26,10 +26,10 @@ export const Route = createFileRoute("/marca/$slug")({
   head: ({ params, loaderData }) => {
     const brand = loaderData?.brand;
     const SITE_URL = "https://rubi-joyeria.com";
-    const title = brand ? `${brand.name} — Historia y Colección | Rubí` : "Marca — Rubí";
+    const title = brand ? `${brand.name} — Historia y Colección | Relojería y Joyería Rubí` : "Marca — Relojería y Joyería Rubí";
     const description = brand
-      ? `Conoce la historia de ${brand.name} y explora su colección exclusiva disponible en Rubí Relojería & Joyería. ${brand.history.slice(0, 120)}...`
-      : "Descubre nuestras marcas de lujo en Rubí.";
+      ? `Conoce la historia de ${brand.name} y explora su colección exclusiva en Relojería y Joyería Rubí, Bucaramanga, Colombia. ${brand.history.slice(0, 120)}...`
+      : "Descubre nuestras marcas de lujo en Relojería y Joyería Rubí.";
     const canonical = `${SITE_URL}/marca/${params.slug}`;
     return {
       meta: [
@@ -41,7 +41,7 @@ export const Route = createFileRoute("/marca/$slug")({
         { property: "og:type", content: "website" },
         { property: "og:url", content: canonical },
         { property: "og:locale", content: "es_CO" },
-        { property: "og:site_name", content: "Rubí Relojería & Joyería" },
+        { property: "og:site_name", content: "Relojería y Joyería Rubí" },
       ],
       links: [{ rel: "canonical", href: canonical }],
       scripts: brand

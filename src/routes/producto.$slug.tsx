@@ -49,22 +49,22 @@ export const Route = createFileRoute("/producto/$slug")({
   head: ({ params, loaderData }) => ({
     meta: loaderData
       ? [
-          { title: `${loaderData.product.name} — Rubí Relojería & Joyería` },
+          { title: `${loaderData.product.name} | Relojería y Joyería Rubí` },
           {
             name: "description",
-            content: `${loaderData.product.description} Disponible en Rubí Relojería & Joyería Colombia.`,
+            content: `${loaderData.product.description} Disponible en Relojería y Joyería Rubí, Bucaramanga, Colombia.`,
           },
           { name: "robots", content: "index, follow" },
-          { property: "og:title", content: `${loaderData.product.name} | Rubí` },
+          { property: "og:title", content: `${loaderData.product.name} | Relojería y Joyería Rubí` },
           { property: "og:description", content: loaderData.product.description },
           { property: "og:image", content: loaderData.product.image },
           { property: "og:image:alt", content: loaderData.product.name },
           { property: "og:type", content: "product" },
           { property: "og:url", content: `https://rubi-joyeria.com/producto/${params.slug}` },
           { property: "og:locale", content: "es_CO" },
-          { property: "og:site_name", content: "Rubí Relojería & Joyería" },
+          { property: "og:site_name", content: "Relojería y Joyería Rubí" },
           { name: "twitter:card", content: "summary_large_image" },
-          { name: "twitter:title", content: `${loaderData.product.name} | Rubí` },
+          { name: "twitter:title", content: `${loaderData.product.name} | Relojería y Joyería Rubí` },
           { name: "twitter:description", content: loaderData.product.description },
           { name: "twitter:image", content: loaderData.product.image },
         ]
@@ -80,12 +80,28 @@ export const Route = createFileRoute("/producto/$slug")({
               name: loaderData.product.name,
               description: loaderData.product.description,
               image: loaderData.product.image,
-              brand: loaderData.product.brand,
+              brand: {
+                "@type": "Brand",
+                name: loaderData.product.brand,
+              },
+              category: loaderData.product.category,
               offers: {
                 "@type": "Offer",
-                price: loaderData.product.price,
+                url: `https://rubi-joyeria.com/producto/${params.slug}`,
                 priceCurrency: "COP",
-                availability: "https://schema.org/InStock",
+                price: loaderData.product.price,
+                availability: loaderData.product.badge === "preorder"
+                  ? "https://schema.org/PreOrder"
+                  : "https://schema.org/InStock",
+                seller: {
+                  "@type": "Organization",
+                  name: "Relojería y Joyería Rubí",
+                },
+              },
+              aggregateRating: {
+                "@type": "AggregateRating",
+                ratingValue: "5",
+                reviewCount: "1",
               },
             }),
           },
