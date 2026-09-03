@@ -12,18 +12,18 @@ export function ProductName({ name, className, referenceClassName }: ProductName
   const match = name.match(REFERENCE_PATTERN);
 
   if (!match?.index) {
-    return <span className={className}>{name}</span>;
+    return <span className={cn("font-sans", className)}>{name}</span>;
   }
 
   const title = name.slice(0, match.index);
   const reference = match[1];
 
   return (
-    <span className={className}>
+    <span className={cn("font-sans", className)}>
       {title}{" "}
       <span
         className={cn(
-          "font-serif font-normal tracking-normal [font-variant-numeric:tabular-nums]",
+          "font-normal tracking-normal [font-variant-numeric:tabular-nums]",
           referenceClassName,
         )}
       >
