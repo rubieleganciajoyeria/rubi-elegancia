@@ -179,7 +179,7 @@ function AccountPage() {
                   <span className="text-muted-foreground">
                     Envío: {o.shipping === 0 ? "Gratis" : formatCOP(o.shipping)}
                   </span>
-                  <span className="font-serif text-base">Total: {formatCOP(o.total)}</span>
+                  <span className="font-sans text-base font-medium">Total: {formatCOP(o.total)}</span>
                 </div>
               </li>
             ))}

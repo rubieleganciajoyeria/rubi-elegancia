@@ -65,15 +65,15 @@ export function ProductCard({ product }: { product: Product }) {
         <div className="flex items-baseline gap-2 pt-1">
           {hasDiscount ? (
             <>
-              <span className="text-sm font-medium text-wine">
+              <span className="font-sans text-sm font-medium text-wine">
                 {formatCOP(product.discountPrice!)}
               </span>
-              <span className="text-xs text-muted-foreground line-through">
+              <span className="font-sans text-xs text-muted-foreground line-through">
                 {formatCOP(product.price)}
               </span>
             </>
           ) : (
-            <span className="text-sm font-medium text-foreground">{formatCOP(product.price)}</span>
+            <span className="font-sans text-sm font-medium text-foreground">{formatCOP(product.price)}</span>
           )}
         </div>
       </div>

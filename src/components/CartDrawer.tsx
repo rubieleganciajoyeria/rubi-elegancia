@@ -87,7 +87,7 @@ export function CartDrawer() {
             <div className="border-t border-border/60 pt-5">
               <div className="flex items-center justify-between text-sm">
                 <span className="uppercase tracking-[0.2em] text-muted-foreground">Subtotal</span>
-                <span className="font-serif text-xl">{formatCOP(subtotal)}</span>
+                <span className="font-sans text-xl font-medium">{formatCOP(subtotal)}</span>
               </div>
               <p className="mt-1 text-xs text-muted-foreground">Envío calculado en el checkout.</p>
               <Link

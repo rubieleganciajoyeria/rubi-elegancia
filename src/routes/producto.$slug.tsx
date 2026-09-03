@@ -236,15 +236,15 @@ function ProductDetail() {
           <div className="mt-6 flex items-baseline gap-3">
             {hasDiscount ? (
               <>
-                <span className="font-serif text-3xl text-wine">
+                <span className="font-sans text-3xl font-medium text-wine">
                   {formatCOP(product.discountPrice!)}
                 </span>
-                <span className="text-base text-muted-foreground line-through">
+                <span className="font-sans text-base text-muted-foreground line-through">
                   {formatCOP(product.price)}
                 </span>
               </>
             ) : (
-              <span className="font-serif text-3xl text-foreground">
+              <span className="font-sans text-3xl font-medium text-foreground">
                 {formatCOP(product.price)}
               </span>
             )}

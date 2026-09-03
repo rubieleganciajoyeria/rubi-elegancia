@@ -378,7 +378,7 @@ function CheckoutPage() {
               )}
               <div className="flex justify-between border-t border-border/60 pt-3 text-base">
                 <dt className="font-medium">Total</dt>
-                <dd className="font-serif text-xl">{formatCOP(total)}</dd>
+                <dd className="font-sans text-xl font-medium">{formatCOP(total)}</dd>
               </div>
             </dl>
 
